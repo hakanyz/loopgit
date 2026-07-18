@@ -68,6 +68,7 @@ private slots:
     void onCommitFileClicked(QTreeWidgetItem *item, int column);
     void showCommitContextMenu(const QPoint &pos);
     void showBranchContextMenu(const QPoint &pos);
+    void showLocalFilesContextMenu(const QPoint &pos);
 
     // ── Misc ────────────────────────────────────────────
     void onRepoChanged(const QString &path);

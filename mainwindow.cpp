@@ -25,6 +25,8 @@
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QFileInfo>
+#include <QDesktopServices>
+#include <QUrl>
 #include <QInputDialog>
 #include <QFileSystemWatcher>
 #include <QHeaderView>
@@ -117,14 +119,25 @@ void MainWindow::setupToolBar()
 {
     m_toolBar = addToolBar(QStringLiteral("Main"));
     m_toolBar->setMovable(false);
-    m_toolBar->setIconSize(QSize(24, 24));
-    m_toolBar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    m_toolBar->setIconSize(QSize(32, 32));
+    m_toolBar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
 
-    m_actLocalFiles = new QAction(QStringLiteral("📁 Local Files"), this);
+    // Provide default style icons via QStyle
+    QIcon iconFolder = style()->standardIcon(QStyle::SP_DirOpenIcon);
+    QIcon iconHistory = style()->standardIcon(QStyle::SP_FileDialogDetailedView);
+    QIcon iconDown = style()->standardIcon(QStyle::SP_ArrowDown);
+    QIcon iconUp = style()->standardIcon(QStyle::SP_ArrowUp);
+    QIcon iconSave = style()->standardIcon(QStyle::SP_DialogSaveButton);
+    QIcon iconOpen = style()->standardIcon(QStyle::SP_DialogOpenButton);
+    QIcon iconCherry = style()->standardIcon(QStyle::SP_FileIcon);
+    QIcon iconRevert = style()->standardIcon(QStyle::SP_BrowserStop);
+    QIcon iconRefresh = style()->standardIcon(QStyle::SP_BrowserReload);
+
+    m_actLocalFiles = new QAction(iconFolder, QStringLiteral("Local Files"), this);
     m_actLocalFiles->setCheckable(true);
     m_actLocalFiles->setChecked(true); // Default
 
-    m_actHistory = new QAction(QStringLiteral("🕒 History"), this);
+    m_actHistory = new QAction(iconHistory, QStringLiteral("History"), this);
     m_actHistory->setCheckable(true);
 
     QActionGroup *perspectiveGroup = new QActionGroup(this);
@@ -136,10 +149,71 @@ void MainWindow::setupToolBar()
     m_toolBar->addAction(m_actHistory);
     m_toolBar->addSeparator();
 
-    m_toolBar->addAction(m_actPush);
+    m_actPull->setIcon(iconDown);
+    m_actPull->setText("Pull");
     m_toolBar->addAction(m_actPull);
-    m_toolBar->addAction(m_actRefresh);
+
+    m_actPush->setIcon(iconUp);
+    m_actPush->setText("Push");
+    m_toolBar->addAction(m_actPush);
+    m_toolBar->addSeparator();
+
+    QAction *actStash = new QAction(iconSave, QStringLiteral("Stash"), this);
+    m_toolBar->addAction(actStash);
     
+    QAction *actPop = new QAction(iconOpen, QStringLiteral("Pop"), this);
+    m_toolBar->addAction(actPop);
+    m_toolBar->addSeparator();
+
+    QAction *actCherry = new QAction(iconCherry, QStringLiteral("Cherry-Pick"), this);
+    m_toolBar->addAction(actCherry);
+
+    QAction *actRevertBtn = new QAction(iconRevert, QStringLiteral("Revert"), this);
+    m_toolBar->addAction(actRevertBtn);
+    m_toolBar->addSeparator();
+
+    m_actRefresh->setIcon(iconRefresh);
+    m_actRefresh->setText("Refresh");
+    m_toolBar->addAction(m_actRefresh);
+
+    connect(actStash, &QAction::triggered, this, [this](){
+        bool ok;
+        QString msg = QInputDialog::getText(this, "Stash", "Stash message:", QLineEdit::Normal, "", &ok);
+        if (ok) {
+            if (m_git->stashSave(msg)) refreshAll();
+            else QMessageBox::critical(this, "Error", m_git->lastError());
+        }
+    });
+
+    connect(actPop, &QAction::triggered, this, [this](){
+        if (QMessageBox::question(this, "Pop Stash", "Apply and drop the latest stash?") == QMessageBox::Yes) {
+            if (m_git->stashPop()) refreshAll();
+            else QMessageBox::critical(this, "Error", m_git->lastError());
+        }
+    });
+
+    connect(actCherry, &QAction::triggered, this, [this](){
+        if (m_selectedCommitId.isEmpty()) {
+            QMessageBox::warning(this, "Warning", "Please select a commit to cherry-pick.");
+            return;
+        }
+        if (QMessageBox::question(this, "Cherry-Pick", "Cherry-pick selected commit?") == QMessageBox::Yes) {
+            if (m_git->cherryPick(m_selectedCommitId)) refreshAll();
+            else QMessageBox::critical(this, "Error", m_git->lastError());
+        }
+    });
+
+    connect(actRevertBtn, &QAction::triggered, this, [this](){
+        if (m_selectedCommitId.isEmpty()) {
+            QMessageBox::warning(this, "Warning", "Please select a commit to revert.");
+            return;
+        }
+        if (QMessageBox::question(this, "Revert", "Revert selected commit?") == QMessageBox::Yes) {
+            if (m_git->revertCommit(m_selectedCommitId)) refreshAll();
+            else QMessageBox::critical(this, "Error", m_git->lastError());
+        }
+    });
+
     connect(m_actLocalFiles, &QAction::triggered, this, [this](){ switchPerspective(0); });
     connect(m_actHistory, &QAction::triggered, this, [this](){ switchPerspective(1); });
 }
@@ -241,7 +315,25 @@ void MainWindow::setupCentralWidget()
     m_logTable->setSelectionMode(QAbstractItemView::SingleSelection);
     m_logTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_logTable->setAlternatingRowColors(true);
+    m_logTable->setShowGrid(false);
+    m_logTable->setFocusPolicy(Qt::NoFocus);
+    m_logTable->setStyleSheet(
+        "QTableView {"
+        "   border: none;"
+        "   selection-background-color: #062f4a;"
+        "   selection-color: white;"
+        "   outline: none;"
+        "}"
+        "QTableView::item {"
+        "   border: none;"
+        "   border-bottom: 1px solid transparent;"
+        "}"
+        "QTableView::item:selected {"
+        "   background-color: #062f4a;"
+        "}"
+    );
     m_logTable->verticalHeader()->setVisible(false);
+    m_logTable->verticalHeader()->setDefaultSectionSize(28);
     
     QHeaderView *hHeader = m_logTable->horizontalHeader();
     hHeader->setStretchLastSection(true);
@@ -319,6 +411,9 @@ void MainWindow::setupStatusBar()
 
 void MainWindow::connectSignals()
 {
+    m_localChangesTree->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(m_localChangesTree, &QTreeWidget::customContextMenuRequested, this, &MainWindow::showLocalFilesContextMenu);
+
     connect(m_localChangesTree, &QTreeWidget::itemDoubleClicked,
             this, &MainWindow::onFileItemDoubleClicked);
 
@@ -329,6 +424,13 @@ void MainWindow::connectSignals()
             return;
         }
         QString path = item->data(0, Qt::UserRole).toString();
+        
+        static const QStringList binExts = {"pdf", "png", "jpg", "jpeg", "gif", "exe", "dll", "so", "bin", "zip", "tar", "gz", "mp4", "mp3", "obj", "o", "a", "lib", "ttf", "woff"};
+        if (binExts.contains(QFileInfo(path).suffix().toLower())) {
+            m_localDiffView->setDiffText(QStringLiteral("(Binary file: %1)").arg(path));
+            return;
+        }
+
         bool isStaged = item->data(0, Qt::UserRole + 1).toBool();
         QString diff = isStaged ? m_git->getStagedDiff(path)
                                 : m_git->getWorkdirDiff(path);
@@ -338,6 +440,14 @@ void MainWindow::connectSignals()
 
     connect(m_historyFilesTree, &QTreeWidget::itemClicked,
             this, &MainWindow::onCommitFileClicked);
+            
+    connect(m_localDiffView, &DiffViewWidget::stageHunkRequested, this, [this](const QString &patch) {
+        if (m_git->stageHunk(patch)) {
+            refreshAll();
+        } else {
+            QMessageBox::critical(this, "Error", m_git->lastError());
+        }
+    });
     
     // Log
     connect(m_logTable->selectionModel(), &QItemSelectionModel::selectionChanged,
@@ -794,6 +904,12 @@ void MainWindow::onCommitFileClicked(QTreeWidgetItem *item, int /*column*/)
     QString path = item->data(0, Qt::UserRole).toString();
     if (path.isEmpty()) return; // Ignored root items
     
+    static const QStringList binExts = {"pdf", "png", "jpg", "jpeg", "gif", "exe", "dll", "so", "bin", "zip", "tar", "gz", "mp4", "mp3", "obj", "o", "a", "lib", "ttf", "woff"};
+    if (binExts.contains(QFileInfo(path).suffix().toLower())) {
+        m_historyDiffView->setDiffText(QStringLiteral("(Binary file: %1)").arg(path));
+        return;
+    }
+
     QString diff = m_git->getCommitDiff(m_selectedCommitId, path);
     if (diff.isEmpty()) {
         m_historyDiffView->setDiffText(QStringLiteral("(No diff available for %1 in commit %2)").arg(path, m_selectedCommitId));
@@ -1067,6 +1183,56 @@ void MainWindow::showBranchContextMenu(const QPoint &pos)
     }
 }
 
+void MainWindow::showLocalFilesContextMenu(const QPoint &pos)
+{
+    QTreeWidgetItem *item = m_localChangesTree->itemAt(pos);
+    if (!item || item == m_stagedRoot || item == m_unstagedRoot) return;
+
+    QString path = item->data(0, Qt::UserRole).toString();
+
+    QMenu menu(this);
+    
+    QFileInfo fi(path);
+    QString fileName = fi.fileName();
+    QString ext = fi.suffix();
+    QString dir = fi.path();
+
+    QAction *actIgnoreExact = menu.addAction(QStringLiteral("Ignore exact file (%1)").arg(fileName));
+    QAction *actIgnoreExt = nullptr;
+    if (!ext.isEmpty()) {
+        actIgnoreExt = menu.addAction(QStringLiteral("Ignore all .%1 files").arg(ext));
+    }
+    QAction *actIgnoreFolder = nullptr;
+    if (dir != ".") {
+        actIgnoreFolder = menu.addAction(QStringLiteral("Ignore folder (%1/)").arg(dir));
+    }
+
+    menu.addSeparator();
+    QAction *actDiscard = menu.addAction(QStringLiteral("Discard Changes"));
+    menu.addSeparator();
+    QAction *actOpenDir = menu.addAction(QStringLiteral("Open in Explorer"));
+
+    QAction *res = menu.exec(m_localChangesTree->viewport()->mapToGlobal(pos));
+    
+    QString ignoreStr;
+    if (res == actIgnoreExact) ignoreStr = path;
+    else if (res && res == actIgnoreExt) ignoreStr = "*." + ext;
+    else if (res && res == actIgnoreFolder) ignoreStr = dir + "/";
+
+    if (!ignoreStr.isEmpty()) {
+        if (m_git->addToGitignore(ignoreStr)) refreshAll();
+        else QMessageBox::critical(this, "Error", m_git->lastError());
+    } else if (res == actDiscard) {
+        if (QMessageBox::question(this, "Discard", QStringLiteral("Discard local changes in '%1'?").arg(path)) == QMessageBox::Yes) {
+            if (m_git->discardFileChanges(path)) refreshAll();
+            else QMessageBox::critical(this, "Error", m_git->lastError());
+        }
+    } else if (res == actOpenDir) {
+        QString absPath = QDir(m_git->repoPath()).absoluteFilePath(path);
+        QDesktopServices::openUrl(QUrl::fromLocalFile(QFileInfo(absPath).absolutePath()));
+    }
+}
+
 void MainWindow::showCommitContextMenu(const QPoint &pos)
 {
     QModelIndex index = m_logTable->indexAt(pos);
@@ -1081,6 +1247,9 @@ void MainWindow::showCommitContextMenu(const QPoint &pos)
 
     QMenu menu(this);
     QAction *actBranch = menu.addAction(QStringLiteral("Create Branch Here..."));
+    menu.addSeparator();
+    QAction *actCherry = menu.addAction(QStringLiteral("Cherry-Pick this commit"));
+    QAction *actRevert = menu.addAction(QStringLiteral("Revert this commit"));
     
     QAction *res = menu.exec(m_logTable->viewport()->mapToGlobal(pos));
     if (res == actBranch) {
@@ -1091,6 +1260,16 @@ void MainWindow::showCommitContextMenu(const QPoint &pos)
             
         if (ok && !name.isEmpty()) {
             if (m_git->createBranchAt(name, commitId)) refreshAll();
+            else QMessageBox::critical(this, "Error", m_git->lastError());
+        }
+    } else if (res == actCherry) {
+        if (QMessageBox::question(this, "Cherry-Pick", QStringLiteral("Cherry-pick commit %1?").arg(commitId.left(7))) == QMessageBox::Yes) {
+            if (m_git->cherryPick(commitId)) refreshAll();
+            else QMessageBox::critical(this, "Error", m_git->lastError());
+        }
+    } else if (res == actRevert) {
+        if (QMessageBox::question(this, "Revert", QStringLiteral("Revert commit %1?").arg(commitId.left(7))) == QMessageBox::Yes) {
+            if (m_git->revertCommit(commitId)) refreshAll();
             else QMessageBox::critical(this, "Error", m_git->lastError());
         }
     }

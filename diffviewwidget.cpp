@@ -43,6 +43,7 @@ void DiffEditor::setupEditor()
     // Read-only
     setReadOnly(true);
     setLineWrapMode(QPlainTextEdit::NoWrap);
+    setMouseTracking(true); // Needed for hover tracking over buttons
 
     // Dark-ish styling
     setStyleSheet(QStringLiteral(
@@ -133,6 +134,109 @@ void DiffEditor::lineNumberAreaPaintEvent(QPaintEvent *event)
     }
 }
 
+void DiffEditor::paintEvent(QPaintEvent *event)
+{
+    QPlainTextEdit::paintEvent(event);
+
+    QPainter painter(viewport());
+    painter.setRenderHint(QPainter::Antialiasing);
+
+    QTextBlock block = firstVisibleBlock();
+    int top = qRound(blockBoundingGeometry(block).translated(contentOffset()).top());
+    int bottom = top + qRound(blockBoundingRect(block).height());
+
+    while (block.isValid() && top <= event->rect().bottom()) {
+        if (block.isVisible() && bottom >= event->rect().top()) {
+            if (block.text().startsWith("@@ ")) {
+                QRect btnRect(viewport()->width() - 90, top + 2, 80, fontMetrics().height() + 4);
+                
+                QColor bgColor = (m_hoveredBlock == block.blockNumber()) ? QColor("#3085C3") : QColor("#007ACC");
+                painter.setPen(Qt::NoPen);
+                painter.setBrush(bgColor);
+                painter.drawRoundedRect(btnRect, 4, 4);
+
+                painter.setPen(Qt::white);
+                painter.drawText(btnRect, Qt::AlignCenter, "Stage Hunk");
+            }
+        }
+        block = block.next();
+        top = bottom;
+        bottom = top + qRound(blockBoundingRect(block).height());
+    }
+}
+
+void DiffEditor::mouseMoveEvent(QMouseEvent *event)
+{
+    QTextBlock block = firstVisibleBlock();
+    int top = qRound(blockBoundingGeometry(block).translated(contentOffset()).top());
+    int bottom = top + qRound(blockBoundingRect(block).height());
+
+    bool foundHover = false;
+
+    while (block.isValid() && top <= viewport()->rect().bottom()) {
+        if (block.isVisible() && bottom >= viewport()->rect().top()) {
+            if (block.text().startsWith("@@ ")) {
+                QRect btnRect(viewport()->width() - 90, top + 2, 80, fontMetrics().height() + 4);
+                if (btnRect.contains(event->pos())) {
+                    if (m_hoveredBlock != block.blockNumber()) {
+                        m_hoveredBlock = block.blockNumber();
+                        viewport()->setCursor(Qt::PointingHandCursor);
+                        viewport()->update();
+                    }
+                    foundHover = true;
+                    break;
+                }
+            }
+        }
+        block = block.next();
+        top = bottom;
+        bottom = top + qRound(blockBoundingRect(block).height());
+    }
+
+    if (!foundHover && m_hoveredBlock != -1) {
+        m_hoveredBlock = -1;
+        viewport()->unsetCursor();
+        viewport()->update();
+    }
+
+    QPlainTextEdit::mouseMoveEvent(event);
+}
+
+void DiffEditor::mousePressEvent(QMouseEvent *event)
+{
+    if (event->button() == Qt::LeftButton) {
+        QTextBlock block = firstVisibleBlock();
+        int top = qRound(blockBoundingGeometry(block).translated(contentOffset()).top());
+        int bottom = top + qRound(blockBoundingRect(block).height());
+
+        while (block.isValid() && top <= viewport()->rect().bottom()) {
+            if (block.isVisible() && bottom >= viewport()->rect().top()) {
+                if (block.text().startsWith("@@ ")) {
+                    QRect btnRect(viewport()->width() - 90, top + 2, 80, fontMetrics().height() + 4);
+                    if (btnRect.contains(event->pos())) {
+                        emit stageHunkRequested(block.blockNumber());
+                        return; // Handled
+                    }
+                }
+            }
+            block = block.next();
+            top = bottom;
+            bottom = top + qRound(blockBoundingRect(block).height());
+        }
+    }
+    QPlainTextEdit::mousePressEvent(event);
+}
+
+void DiffEditor::leaveEvent(QEvent *event)
+{
+    if (m_hoveredBlock != -1) {
+        m_hoveredBlock = -1;
+        viewport()->unsetCursor();
+        viewport()->update();
+    }
+    QPlainTextEdit::leaveEvent(event);
+}
+
 // ═══════════════════════════════════════════════════════════════════
 //  DiffViewWidget (Side-by-Side Container)
 // ═══════════════════════════════════════════════════════════════════
@@ -179,10 +283,13 @@ DiffViewWidget::DiffViewWidget(QWidget *parent)
             m_rightEditor->verticalScrollBar(), &QScrollBar::setValue);
     connect(m_rightEditor->verticalScrollBar(), &QScrollBar::valueChanged,
             m_leftEditor->verticalScrollBar(), &QScrollBar::setValue);
+
+    connect(m_leftEditor, &DiffEditor::stageHunkRequested, this, &DiffViewWidget::onLeftEditorStageHunk);
 }
 
 void DiffViewWidget::setDiffText(const QString &diff)
 {
+    m_currentDiff = diff;
     m_leftEditor->clear();
     m_rightEditor->clear();
 
@@ -298,3 +405,43 @@ void DiffViewWidget::clearDiff()
     m_leftEditor->clear();
     m_rightEditor->clear();
 }
+
+void DiffViewWidget::onLeftEditorStageHunk(int blockNumber)
+{
+    QTextBlock block = m_leftEditor->document()->findBlockByNumber(blockNumber);
+    if (!block.isValid() || !block.text().startsWith("@@ ")) return;
+    
+    QString hunkHeader = block.text().trimmed();
+    QStringList lines = m_currentDiff.split('\n');
+    QString patchHeader;
+    QString patchHunk;
+    
+    bool inHeader = true;
+    bool foundHunk = false;
+    
+    for (const QString &line : lines) {
+        if (inHeader) {
+            if (line.startsWith("@@ ")) inHeader = false;
+            else {
+                patchHeader += line + "\n";
+            }
+        }
+        
+        if (!inHeader) {
+            if (line.trimmed() == hunkHeader) {
+                foundHunk = true;
+                patchHunk += line + "\n";
+            } else if (foundHunk) {
+                if (line.startsWith("@@ ")) {
+                    break; // End of this hunk
+                }
+                patchHunk += line + "\n";
+            }
+        }
+    }
+    
+    if (foundHunk && !patchHunk.trimmed().isEmpty()) {
+        emit stageHunkRequested(patchHeader + patchHunk);
+    }
+}
+

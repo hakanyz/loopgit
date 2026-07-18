@@ -22,6 +22,51 @@ QSize CommitGraphDelegate::sizeHint(const QStyleOptionViewItem &option, const QM
 
 void CommitGraphDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
 {
+    if (index.column() == CommitGraphModel::ColMessage) {
+        if (option.state & QStyle::State_Selected) {
+            painter->fillRect(option.rect, QColor("#062f4a")); // Exact match to stylesheet
+        }
+
+        QStringList refs = index.data(Qt::UserRole + 1).toStringList();
+        QString msg = index.data(Qt::DisplayRole).toString();
+
+        painter->save();
+        painter->setRenderHint(QPainter::Antialiasing);
+
+        QRect rect = option.rect;
+
+        int x = rect.left() + 4;
+        QFontMetrics fm(painter->font());
+        
+        for (const QString &ref : refs) {
+            QRect badgeRect(x, rect.top() + (rect.height() - 16) / 2, fm.horizontalAdvance(ref) + 12, 16);
+            
+            QColor bgColor = QColor("#0E639C"); // Default blue
+            if (ref == "HEAD" || ref.startsWith("HEAD ->")) bgColor = QColor("#238636"); // Green
+            else if (ref.startsWith("origin/")) bgColor = QColor("#DA3633"); // Red for remote
+            
+            painter->setPen(Qt::NoPen);
+            painter->setBrush(bgColor);
+            painter->drawRoundedRect(badgeRect, 4, 4);
+
+            painter->setPen(Qt::white);
+            painter->drawText(badgeRect, Qt::AlignCenter, ref);
+
+            x += badgeRect.width() + 6;
+        }
+
+        QRect textRect = rect;
+        textRect.setLeft(x);
+        painter->setPen(option.state & QStyle::State_Selected ? option.palette.highlightedText().color() : option.palette.text().color());
+        
+        // Use elided text if too long
+        QString elidedMsg = fm.elidedText(msg, Qt::ElideRight, textRect.width() - 4);
+        painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter, elidedMsg);
+
+        painter->restore();
+        return;
+    }
+
     QStyledItemDelegate::paint(painter, option, index);
 
     if (index.column() != CommitGraphModel::ColGraph)
@@ -66,12 +111,12 @@ void CommitGraphDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
             // Straight line
             path.lineTo(laneX(edge.toLane), centerY);
         } else {
-            // Bezier curve
+            // Angular/Straight diagonal curve
             int startX = laneX(edge.fromLane);
             int endX   = laneX(edge.toLane);
-            path.cubicTo(startX, topY + (centerY - topY)/2,
-                         endX,   topY + (centerY - topY)/2,
-                         endX,   centerY);
+            path.lineTo(startX, topY + 4);
+            path.lineTo(endX, centerY - 4);
+            path.lineTo(endX, centerY);
         }
         painter->drawPath(path);
     }
@@ -94,22 +139,20 @@ void CommitGraphDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
             // Straight line
             path.lineTo(laneX(edge.toLane), bottomY);
         } else {
-            // Bezier curve
+            // Angular/Straight diagonal curve
             int startX = laneX(edge.fromLane);
             int endX   = laneX(edge.toLane);
-            path.cubicTo(startX, centerY + (bottomY - centerY)/2,
-                         endX,   centerY + (bottomY - centerY)/2,
-                         endX,   bottomY);
+            path.lineTo(startX, centerY + 4);
+            path.lineTo(endX, bottomY - 4);
+            path.lineTo(endX, bottomY);
         }
         painter->drawPath(path);
     }
 
-    // Draw the commit node (dot)
+    // Draw the commit node (dot) - Hollow
     painter->setPen(QPen(node.color, 2));
-    painter->setBrush(QColor("#252526")); // Background color of the table to make it hollow or solid
-    // Let's make it solid colored
-    painter->setBrush(node.color);
-    painter->drawEllipse(QPoint(centerX, centerY), dotRadius, dotRadius);
+    painter->setBrush(QColor("#1E1E1E")); // Dark background to make it hollow
+    painter->drawEllipse(QPoint(centerX, centerY), dotRadius + 1, dotRadius + 1);
 
     painter->restore();
 }

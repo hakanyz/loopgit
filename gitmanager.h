@@ -111,6 +111,9 @@ public:
     bool unstageFile(const QString &path);
     bool stageAll();
     bool unstageAll();
+    bool stageHunk(const QString &patchText);
+    bool discardFileChanges(const QString &path);
+    bool addToGitignore(const QString &path);
     bool commit(const QString &message);
 
     /* ── Push / Pull (Faz 2) ─────────────────────────── */
@@ -132,6 +135,12 @@ public:
     bool checkoutBranch(const QString &name);
     bool mergeBranch(const QString &name);
     bool deleteBranch(const QString &name);
+
+    /* ── Stash & Advanced (Faz 3) ────────────────────── */
+    bool stashSave(const QString &message);
+    bool stashPop();
+    bool cherryPick(const QString &commitId);
+    bool revertCommit(const QString &commitId);
 
     /* ── Error handling ──────────────────────────────── */
     QString lastError() const;

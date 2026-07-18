@@ -362,6 +362,37 @@ bool GitManager::stageFile(const QString &path)
     return true;
 }
 
+bool GitManager::stageHunk(const QString &patchText)
+{
+    if (!ensureOpen() || patchText.isEmpty()) return false;
+
+    git_diff *diff = nullptr;
+    int err = git_diff_from_buffer(&diff, patchText.toUtf8().constData(), patchText.toUtf8().length());
+    if (err < 0) {
+        setError("Failed to parse hunk patch");
+        return false;
+    }
+
+    err = git_apply(m_repo, diff, GIT_APPLY_LOCATION_INDEX, nullptr);
+    git_diff_free(diff);
+
+    if (err < 0) {
+        setError("Failed to apply hunk to index (might already be staged or conflict)");
+        return false;
+    }
+
+    // git_apply with GIT_APPLY_LOCATION_INDEX updates the index on disk directly if it succeeds.
+    // wait, actually we might need to manually git_index_write if git_apply doesn't do it?
+    // git_apply usually writes it. Just to be safe:
+    git_index *index = nullptr;
+    if (git_repository_index(&index, m_repo) == 0) {
+        git_index_write(index);
+        git_index_free(index);
+    }
+
+    return true;
+}
+
 bool GitManager::unstageFile(const QString &path)
 {
     if (!ensureOpen()) return false;
@@ -551,6 +582,52 @@ bool GitManager::commit(const QString &message)
     }
     return true;
 }
+
+bool GitManager::discardFileChanges(const QString &path)
+{
+    if (!ensureOpen() || path.isEmpty()) return false;
+
+    // First try git_checkout_index to restore the file
+    git_checkout_options opts = GIT_CHECKOUT_OPTIONS_INIT;
+    opts.checkout_strategy = GIT_CHECKOUT_FORCE;
+    
+    QByteArray pathBytes = path.toUtf8();
+    char *paths[1];
+    paths[0] = pathBytes.data();
+    opts.paths.strings = paths;
+    opts.paths.count = 1;
+
+    int err = git_checkout_index(m_repo, nullptr, &opts);
+    if (err < 0) {
+        // If it's untracked, git_checkout_index might fail or do nothing, 
+        // we can just delete the file from disk.
+        QFile file(QDir(repoPath()).absoluteFilePath(path));
+        if (file.exists() && file.remove()) {
+            return true;
+        }
+        setError(QStringLiteral("Failed to discard changes for '%1'").arg(path));
+        return false;
+    }
+    return true;
+}
+
+bool GitManager::addToGitignore(const QString &path)
+{
+    if (!ensureOpen() || path.isEmpty()) return false;
+    
+    QString gitignorePath = QDir(repoPath()).absoluteFilePath(".gitignore");
+    QFile file(gitignorePath);
+    if (file.open(QIODevice::Append | QIODevice::Text)) {
+        QTextStream out(&file);
+        out << "\n" << path << "\n";
+        file.close();
+        return true;
+    }
+    
+    setError(QStringLiteral("Failed to write to .gitignore"));
+    return false;
+}
+
 
 // ═══════════════════════════════════════════════════════════════════
 //  Faz 2 — Credential callback
@@ -1264,3 +1341,103 @@ bool GitManager::deleteBranch(const QString &name)
     }
     return true;
 }
+
+// ═══════════════════════════════════════════════════════════════════
+//  Faz 3 — Stash & Advanced
+// ═══════════════════════════════════════════════════════════════════
+
+bool GitManager::stashSave(const QString &message)
+{
+    if (!ensureOpen()) return false;
+
+    git_signature *sig = nullptr;
+    if (git_signature_default(&sig, m_repo) < 0) {
+        git_signature_now(&sig, "Unknown", "unknown@example.com");
+    }
+
+    git_oid out;
+    int err = git_stash_save(&out, m_repo, sig, message.toUtf8().constData(), GIT_STASH_DEFAULT);
+    git_signature_free(sig);
+
+    if (err == GIT_ENOTFOUND) {
+        setError(QStringLiteral("No local changes to stash"));
+        return false;
+    }
+    if (err < 0) {
+        setError(QStringLiteral("Failed to stash changes"));
+        return false;
+    }
+    return true;
+}
+
+bool GitManager::stashPop()
+{
+    if (!ensureOpen()) return false;
+
+    git_stash_apply_options opts = GIT_STASH_APPLY_OPTIONS_INIT;
+    int err = git_stash_pop(m_repo, 0, &opts);
+    if (err == GIT_ENOTFOUND) {
+        setError(QStringLiteral("No stashes available to pop"));
+        return false;
+    }
+    if (err < 0) {
+        setError(QStringLiteral("Failed to pop stash"));
+        return false;
+    }
+    return true;
+}
+
+bool GitManager::cherryPick(const QString &commitId)
+{
+    if (!ensureOpen() || commitId.isEmpty()) return false;
+
+    git_oid oid;
+    if (git_oid_fromstr(&oid, commitId.toUtf8().constData()) < 0) {
+        setError("Invalid commit ID for cherry-pick");
+        return false;
+    }
+
+    git_commit *commit = nullptr;
+    if (git_commit_lookup(&commit, m_repo, &oid) < 0) {
+        setError("Commit not found");
+        return false;
+    }
+
+    git_cherrypick_options opts = GIT_CHERRYPICK_OPTIONS_INIT;
+    int err = git_cherrypick(m_repo, commit, &opts);
+    git_commit_free(commit);
+
+    if (err < 0) {
+        setError("Cherry-pick failed (check for conflicts)");
+        return false;
+    }
+    return true;
+}
+
+bool GitManager::revertCommit(const QString &commitId)
+{
+    if (!ensureOpen() || commitId.isEmpty()) return false;
+
+    git_oid oid;
+    if (git_oid_fromstr(&oid, commitId.toUtf8().constData()) < 0) {
+        setError("Invalid commit ID for revert");
+        return false;
+    }
+
+    git_commit *commit = nullptr;
+    if (git_commit_lookup(&commit, m_repo, &oid) < 0) {
+        setError("Commit not found");
+        return false;
+    }
+
+    git_revert_options opts = GIT_REVERT_OPTIONS_INIT;
+    int err = git_revert(m_repo, commit, &opts);
+    git_commit_free(commit);
+
+    if (err < 0) {
+        setError("Revert failed (check for conflicts)");
+        return false;
+    }
+    return true;
+}
+

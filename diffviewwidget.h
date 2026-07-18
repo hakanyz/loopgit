@@ -38,8 +38,15 @@ public:
     int  lineNumberAreaWidth() const;
     void lineNumberAreaPaintEvent(QPaintEvent *event);
 
+signals:
+    void stageHunkRequested(int blockNumber);
+
 protected:
     void resizeEvent(QResizeEvent *event) override;
+    void paintEvent(QPaintEvent *event) override;
+    void mousePressEvent(QMouseEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
+    void leaveEvent(QEvent *event) override;
 
 private slots:
     void updateLineNumberAreaWidth(int newBlockCount);
@@ -49,6 +56,7 @@ private:
     void setupEditor();
 
     LineNumberArea  *m_lineNumberArea;
+    int m_hoveredBlock = -1;
 };
 
 // ─── DiffViewWidget (Side-by-Side Container) ───────────────────────
@@ -65,10 +73,17 @@ public:
     void setDiffText(const QString &diff);
     void clearDiff();
 
+signals:
+    void stageHunkRequested(const QString &hunkPatch);
+
+private slots:
+    void onLeftEditorStageHunk(int blockNumber);
+
 private:
     DiffEditor *m_leftEditor;
     DiffEditor *m_rightEditor;
     QSplitter  *m_splitter;
+    QString    m_currentDiff;
 };
 
 #endif // DIFFVIEWWIDGET_H
