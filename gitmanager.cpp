@@ -295,6 +295,14 @@ QVector<CommitInfo> GitManager::getLog(int maxCount)
                                  QTimeZone(author->when.offset * 60));
         }
 
+        unsigned int parentCount = git_commit_parentcount(commit);
+        for (unsigned int i = 0; i < parentCount; ++i) {
+            const git_oid *poid = git_commit_parent_id(commit, i);
+            char pHashBuf[41];
+            git_oid_tostr(pHashBuf, sizeof(pHashBuf), poid);
+            ci.parentIds.append(QString::fromUtf8(pHashBuf));
+        }
+
         result.append(ci);
         git_commit_free(commit);
         ++count;

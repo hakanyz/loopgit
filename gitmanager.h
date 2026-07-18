@@ -70,6 +70,7 @@ struct CommitInfo {
     QString  authorName;
     QString  authorEmail;
     QDateTime date;
+    QStringList parentIds; // full SHA-1 hex of parents
 };
 
 struct BranchInfo {

@@ -65,6 +65,10 @@ set(PROJECT_SOURCES
     gitmanager.cpp
     diffviewwidget.h
     diffviewwidget.cpp
+    commitgraphmodel.h
+    commitgraphmodel.cpp
+    commitgraphdelegate.h
+    commitgraphdelegate.cpp
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)

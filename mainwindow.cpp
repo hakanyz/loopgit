@@ -10,10 +10,13 @@
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QTreeWidget>
-#include <QTableWidget>
-#include <QTextEdit>
-#include <QPushButton>
 #include <QComboBox>
+#include <QPushButton>
+#include <QTextEdit>
+#include <QTableView>
+#include <QHeaderView>
+#include "commitgraphmodel.h"
+#include "commitgraphdelegate.h"
 #include <QLabel>
 #include <QFileDialog>
 #include <QMessageBox>
@@ -31,6 +34,8 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , m_git(new GitManager(this))
     , m_watcher(new QFileSystemWatcher(this))
+    , m_logModel(new CommitGraphModel(this))
+    , m_logDelegate(new CommitGraphDelegate(this))
 {
     setupUi();
     connectSignals();
@@ -107,7 +112,8 @@ void MainWindow::setupToolBar()
 {
     m_toolBar = addToolBar(QStringLiteral("Main"));
     m_toolBar->setMovable(false);
-    m_toolBar->setIconSize(QSize(20, 20));
+    m_toolBar->setIconSize(QSize(32, 32));
+    m_toolBar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
 
     m_toolBar->addAction(m_actOpen);
     m_toolBar->addSeparator();
@@ -192,21 +198,25 @@ void MainWindow::setupCentralWidget()
     m_diffView = new DiffViewWidget;
 
     // ── Bottom panel: commit log ────────────────────────
-    m_logTable = new QTableWidget;
-    m_logTable->setColumnCount(4);
-    m_logTable->setHorizontalHeaderLabels(
-        {QStringLiteral("Hash"), QStringLiteral("Message"),
-         QStringLiteral("Author"), QStringLiteral("Date")});
-    m_logTable->horizontalHeader()->setStretchLastSection(true);
-    m_logTable->horizontalHeader()->setSectionResizeMode(
-        1, QHeaderView::Stretch);
-    m_logTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    m_logTable = new QTableView;
+    m_logTable->setModel(m_logModel);
+    m_logTable->setItemDelegate(m_logDelegate);
     m_logTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    m_logTable->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_logTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_logTable->setAlternatingRowColors(true);
     m_logTable->verticalHeader()->setVisible(false);
-    m_logTable->setColumnWidth(0, 80);
-    m_logTable->setColumnWidth(2, 120);
-    m_logTable->setColumnWidth(3, 160);
+    
+    // Stretch message column, fix graph and hash widths
+    QHeaderView *hHeader = m_logTable->horizontalHeader();
+    hHeader->setStretchLastSection(true);
+    hHeader->setSectionResizeMode(CommitGraphModel::ColGraph, QHeaderView::Fixed);
+    hHeader->setSectionResizeMode(CommitGraphModel::ColMessage, QHeaderView::Stretch);
+    
+    m_logTable->setColumnWidth(CommitGraphModel::ColGraph, 120);
+    m_logTable->setColumnWidth(CommitGraphModel::ColHash, 80);
+    m_logTable->setColumnWidth(CommitGraphModel::ColAuthor, 120);
+    m_logTable->setColumnWidth(CommitGraphModel::ColDate, 140);
 
     // ── Splitters ───────────────────────────────────────
     // Top area: left (file tree + commit) | right (diff)
@@ -266,7 +276,7 @@ void MainWindow::connectSignals()
                 m_stagedRoot->takeChildren();
                 m_unstagedRoot->takeChildren();
                 m_diffView->clearDiff();
-                m_logTable->setRowCount(0);
+                m_logModel->setCommits(QVector<CommitInfo>());
                 m_branchCombo->clear();
                 m_statusLabel->setText(QStringLiteral("No repository open"));
                 if (!m_watcher->directories().isEmpty())
@@ -361,14 +371,14 @@ void MainWindow::applyDarkTheme()
             border: 1px solid #3C3C3C;
             padding: 4px;
         }
-        QTableWidget {
+        QTableView {
             background-color: #252526;
             color: #D4D4D4;
             border: 1px solid #3C3C3C;
             alternate-background-color: #2A2A2A;
             gridline-color: #3C3C3C;
         }
-        QTableWidget::item:selected {
+        QTableView::item:selected {
             background-color: #094771;
         }
         QTextEdit {
@@ -569,17 +579,7 @@ void MainWindow::updateFileList()
 
 void MainWindow::updateCommitLog()
 {
-    QVector<CommitInfo> log = m_git->getLog(200);
-    m_logTable->setRowCount(log.size());
-
-    for (int i = 0; i < log.size(); ++i) {
-        const auto &ci = log[i];
-        m_logTable->setItem(i, 0, new QTableWidgetItem(ci.shortId));
-        m_logTable->setItem(i, 1, new QTableWidgetItem(ci.summary));
-        m_logTable->setItem(i, 2, new QTableWidgetItem(ci.authorName));
-        m_logTable->setItem(i, 3, new QTableWidgetItem(
-            ci.date.toString(QStringLiteral("yyyy-MM-dd hh:mm"))));
-    }
+    m_logModel->setCommits(m_git->getLog(200));
 }
 
 // ═══════════════════════════════════════════════════════════════════

@@ -5,7 +5,7 @@
 
 class QTreeWidget;
 class QTreeWidgetItem;
-class QTableWidget;
+class QTableView;
 class QTextEdit;
 class QPushButton;
 class QComboBox;
@@ -17,6 +17,8 @@ class QToolBar;
 
 class GitManager;
 class DiffViewWidget;
+class CommitGraphModel;
+class CommitGraphDelegate;
 
 class MainWindow : public QMainWindow
 {
@@ -82,7 +84,9 @@ private:
     QTreeWidgetItem *m_stagedRoot;
     QTreeWidgetItem *m_unstagedRoot;
     DiffViewWidget *m_diffView;
-    QTableWidget   *m_logTable;
+    QTableView     *m_logTable;
+    CommitGraphModel *m_logModel;
+    CommitGraphDelegate *m_logDelegate;
     QTextEdit      *m_commitEdit;
     QPushButton    *m_commitBtn;
     QComboBox      *m_branchCombo;
