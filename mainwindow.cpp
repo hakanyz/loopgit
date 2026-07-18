@@ -219,21 +219,21 @@ void MainWindow::setupCentralWidget()
     m_logTable->setColumnWidth(CommitGraphModel::ColDate, 140);
 
     // ── Splitters ───────────────────────────────────────
-    // Top area: left (file tree + commit) | right (diff)
+    // Right area: top (log table) | bottom (diff view)
+    m_rightSplitter = new QSplitter(Qt::Vertical);
+    m_rightSplitter->addWidget(m_logTable);
+    m_rightSplitter->addWidget(m_diffView);
+    m_rightSplitter->setStretchFactor(0, 5); // Log gets more space
+    m_rightSplitter->setStretchFactor(1, 3); // Diff gets less
+
+    // Main area: left (file tree + commit) | right (rightSplitter)
     m_mainSplitter = new QSplitter(Qt::Horizontal);
     m_mainSplitter->addWidget(leftPanel);
-    m_mainSplitter->addWidget(m_diffView);
-    m_mainSplitter->setStretchFactor(0, 1);
-    m_mainSplitter->setStretchFactor(1, 2);
+    m_mainSplitter->addWidget(m_rightSplitter);
+    m_mainSplitter->setStretchFactor(0, 1); // Left panel (files)
+    m_mainSplitter->setStretchFactor(1, 4); // Log + Diff gets most space
 
-    // Vertical: top area | bottom (log)
-    m_rightSplitter = new QSplitter(Qt::Vertical);
-    m_rightSplitter->addWidget(m_mainSplitter);
-    m_rightSplitter->addWidget(m_logTable);
-    m_rightSplitter->setStretchFactor(0, 3);
-    m_rightSplitter->setStretchFactor(1, 1);
-
-    setCentralWidget(m_rightSplitter);
+    setCentralWidget(m_mainSplitter);
 }
 
 // ─── Status Bar ────────────────────────────────────────────────────
