@@ -153,11 +153,8 @@ DiffViewWidget::DiffViewWidget(QWidget *parent)
     leftLayout->setContentsMargins(0, 0, 0, 0);
     leftLayout->setSpacing(0);
     
-    QLabel *leftLabel = new QLabel(QStringLiteral("Old"), this);
-    leftLabel->setStyleSheet(QStringLiteral("background-color: #2D2D2D; color: #D4D4D4; padding: 4px; font-weight: bold; border-bottom: 1px solid #3C3C3C;"));
     m_leftEditor = new DiffEditor(this);
     
-    leftLayout->addWidget(leftLabel);
     leftLayout->addWidget(m_leftEditor);
     
     // Right Pane
@@ -166,11 +163,8 @@ DiffViewWidget::DiffViewWidget(QWidget *parent)
     rightLayout->setContentsMargins(0, 0, 0, 0);
     rightLayout->setSpacing(0);
     
-    QLabel *rightLabel = new QLabel(QStringLiteral("New"), this);
-    rightLabel->setStyleSheet(QStringLiteral("background-color: #2D2D2D; color: #D4D4D4; padding: 4px; font-weight: bold; border-bottom: 1px solid #3C3C3C;"));
     m_rightEditor = new DiffEditor(this);
     
-    rightLayout->addWidget(rightLabel);
     rightLayout->addWidget(m_rightEditor);
     
     m_splitter->addWidget(leftWidget);

@@ -24,6 +24,7 @@
 #include <QLabel>
 #include <QFileDialog>
 #include <QMessageBox>
+#include <QFileInfo>
 #include <QInputDialog>
 #include <QFileSystemWatcher>
 #include <QHeaderView>
@@ -253,8 +254,9 @@ void MainWindow::setupCentralWidget()
     m_logTable->setColumnWidth(CommitGraphModel::ColDate, 140);
 
     m_historyFilesTree = new QTreeWidget;
-    m_historyFilesTree->setHeaderLabels({QStringLiteral("Status"), QStringLiteral("File")});
+    m_historyFilesTree->setHeaderLabels({QStringLiteral("Status"), QStringLiteral("Name"), QStringLiteral("Path")});
     m_historyFilesTree->setColumnWidth(0, 80);
+    m_historyFilesTree->setColumnWidth(1, 150);
     m_historyFilesTree->setRootIsDecorated(false);
     m_historyFilesTree->setAlternatingRowColors(true);
     
@@ -757,9 +759,14 @@ void MainWindow::onCommitSelected(const QItemSelection &selected, const QItemSel
     
     for (const auto &entry : entries) {
         auto *item = new QTreeWidgetItem(m_historyFilesTree);
-        QString statusText = FileStatusEntry::statusChar(entry.worktreeStatus);
+        QString statusText = FileStatusEntry::statusString(entry.worktreeStatus);
+        
+        QFileInfo fi(entry.path);
+        
         item->setText(0, statusText);
-        item->setText(1, entry.path);
+        item->setText(1, fi.fileName());
+        item->setText(2, fi.path() == "." ? "" : fi.path());
+        
         item->setData(0, Qt::UserRole, entry.path);
         item->setTextAlignment(0, Qt::AlignCenter);
         
