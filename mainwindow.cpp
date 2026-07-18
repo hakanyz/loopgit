@@ -67,6 +67,11 @@ void MainWindow::setupUi()
     setupStatusBar();
 }
 
+#include <QSettings>
+#include <QFormLayout>
+#include <QDialogButtonBox>
+#include <QProgressDialog>
+
 // ─── Menu Bar ──────────────────────────────────────────────────────
 
 void MainWindow::setupMenuBar()
@@ -78,8 +83,13 @@ void MainWindow::setupMenuBar()
     m_actOpen  = fileMenu->addAction(QStringLiteral("📂 &Open Repository..."),
                                      QKeySequence::Open,
                                      this, &MainWindow::openRepository);
+    m_actClone = fileMenu->addAction(QStringLiteral("🌐 &Clone Repository..."),
+                                     this, &MainWindow::cloneRepository);
     m_actClose = fileMenu->addAction(QStringLiteral("Close Repository"),
                                      this, &MainWindow::closeRepository);
+    fileMenu->addSeparator();
+    m_actCredentials = fileMenu->addAction(QStringLiteral("🔑 GitHub Credentials..."),
+                                           this, &MainWindow::openCredentials);
     fileMenu->addSeparator();
     fileMenu->addAction(QStringLiteral("E&xit"),
                         QKeySequence::Quit,
@@ -96,12 +106,14 @@ void MainWindow::setupMenuBar()
     m_actUnstageAll = repoMenu->addAction(QStringLiteral("Unstage All"),
                                           this, &MainWindow::unstageAll);
     repoMenu->addSeparator();
-    m_actPush = repoMenu->addAction(QStringLiteral("⬆ &Push"),
-                                    QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_P),
-                                    this, &MainWindow::doPush);
+    m_actFetch = repoMenu->addAction(QStringLiteral("🔄 Fe&tch"),
+                                     this, &MainWindow::doFetch);
     m_actPull = repoMenu->addAction(QStringLiteral("⬇ Pu&ll"),
                                     QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_L),
                                     this, &MainWindow::doPull);
+    m_actPush = repoMenu->addAction(QStringLiteral("⬆ &Push"),
+                                    QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_P),
+                                    this, &MainWindow::doPush);
 
     // Branch
     QMenu *branchMenu = mb->addMenu(QStringLiteral("&Branch"));
@@ -148,6 +160,10 @@ void MainWindow::setupToolBar()
     m_toolBar->addAction(m_actLocalFiles);
     m_toolBar->addAction(m_actHistory);
     m_toolBar->addSeparator();
+
+    m_actFetch->setIcon(iconDown); // Or another icon
+    m_actFetch->setText("Fetch");
+    m_toolBar->addAction(m_actFetch);
 
     m_actPull->setIcon(iconDown);
     m_actPull->setText("Pull");
@@ -472,6 +488,11 @@ void MainWindow::connectSignals()
                 
                 m_dirModel->setRootPath(path);
                 m_dirTree->setRootIndex(m_dirModel->index(path));
+
+                QSettings settings("MyCompany", "QtGitClient");
+                QString user = settings.value("github/username", "").toString();
+                QString token = settings.value("github/token", "").toString();
+                m_git->setCredentials(user, token);
 
                 // Watch for changes
                 m_watcher->addPath(path);
@@ -1002,24 +1023,144 @@ void MainWindow::doCommit()
 
 void MainWindow::doPush()
 {
-    statusBar()->showMessage(QStringLiteral("Pushing..."));
+    if (!m_git->isOpen()) return;
+    QProgressDialog progress("Pushing to remote...", "Cancel", 0, 0, this);
+    progress.setWindowModality(Qt::WindowModal);
+    progress.show();
     QApplication::processEvents();
 
     if (m_git->push()) {
-        statusBar()->showMessage(QStringLiteral("Push successful!"), 3000);
+        QMessageBox::information(this, "Success", "Successfully pushed to remote.");
+        refreshAll();
+    } else {
+        QMessageBox::critical(this, "Error", QStringLiteral("Push failed:\n%1\n\nPlease check your Credentials.").arg(m_git->lastError()));
     }
-    refreshAll();
 }
 
 void MainWindow::doPull()
 {
-    statusBar()->showMessage(QStringLiteral("Pulling..."));
+    if (!m_git->isOpen()) return;
+    QProgressDialog progress("Pulling from remote...", "Cancel", 0, 0, this);
+    progress.setWindowModality(Qt::WindowModal);
+    progress.show();
     QApplication::processEvents();
 
     if (m_git->pull()) {
-        statusBar()->showMessage(QStringLiteral("Pull successful!"), 3000);
+        QMessageBox::information(this, "Success", "Successfully pulled from remote.");
+        refreshAll();
+    } else {
+        QMessageBox::critical(this, "Error", QStringLiteral("Pull failed:\n%1\n\nPlease check your Credentials.").arg(m_git->lastError()));
     }
-    refreshAll();
+}
+
+void MainWindow::doFetch()
+{
+    if (!m_git->isOpen()) return;
+    QProgressDialog progress("Fetching from remote...", "Cancel", 0, 0, this);
+    progress.setWindowModality(Qt::WindowModal);
+    progress.show();
+    QApplication::processEvents();
+
+    if (m_git->fetch()) {
+        QMessageBox::information(this, "Success", "Successfully fetched from remote.");
+        refreshAll();
+    } else {
+        QMessageBox::critical(this, "Error", QStringLiteral("Fetch failed:\n%1\n\nPlease check your Credentials.").arg(m_git->lastError()));
+    }
+}
+
+void MainWindow::cloneRepository()
+{
+    QDialog dialog(this);
+    dialog.setWindowTitle("Clone Repository");
+    QFormLayout *layout = new QFormLayout(&dialog);
+
+    QLineEdit *urlEdit = new QLineEdit(&dialog);
+    urlEdit->setPlaceholderText("https://github.com/user/repo.git");
+    
+    QWidget *pathWidget = new QWidget(&dialog);
+    QHBoxLayout *pathLayout = new QHBoxLayout(pathWidget);
+    pathLayout->setContentsMargins(0, 0, 0, 0);
+    QLineEdit *pathEdit = new QLineEdit(pathWidget);
+    QPushButton *browseBtn = new QPushButton("Browse...", pathWidget);
+    pathLayout->addWidget(pathEdit);
+    pathLayout->addWidget(browseBtn);
+    
+    connect(browseBtn, &QPushButton::clicked, [&](){
+        QString dir = QFileDialog::getExistingDirectory(this, "Select Directory");
+        if (!dir.isEmpty()) pathEdit->setText(dir);
+    });
+
+    layout->addRow("Repository URL:", urlEdit);
+    layout->addRow("Destination:", pathWidget);
+
+    QDialogButtonBox *btnBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+    layout->addRow(btnBox);
+
+    connect(btnBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(btnBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+
+    if (dialog.exec() == QDialog::Accepted) {
+        QString url = urlEdit->text().trimmed();
+        QString dest = pathEdit->text().trimmed();
+
+        if (url.isEmpty() || dest.isEmpty()) return;
+
+        QSettings settings("MyCompany", "QtGitClient");
+        m_git->setCredentials(settings.value("github/username", "").toString(), settings.value("github/token", "").toString());
+
+        QProgressDialog progress("Cloning repository...", "Cancel", 0, 0, this);
+        progress.setWindowModality(Qt::WindowModal);
+        progress.show();
+        QApplication::processEvents();
+
+        if (m_git->cloneRepository(url, dest)) {
+            QMessageBox::information(this, "Success", "Repository cloned successfully.");
+            m_dirModel->setRootPath(dest);
+            m_dirTree->setRootIndex(m_dirModel->index(dest));
+            refreshAll();
+            setRepoActionsEnabled(true);
+        } else {
+            QMessageBox::critical(this, "Error", QStringLiteral("Clone failed:\n%1\n\nPlease check your Credentials.").arg(m_git->lastError()));
+        }
+    }
+}
+
+void MainWindow::openCredentials()
+{
+    QSettings settings("MyCompany", "QtGitClient");
+
+    QDialog dialog(this);
+    dialog.setWindowTitle("GitHub Credentials");
+    QFormLayout *layout = new QFormLayout(&dialog);
+
+    QLineEdit *userEdit = new QLineEdit(&dialog);
+    userEdit->setText(settings.value("github/username", "").toString());
+    
+    QLineEdit *tokenEdit = new QLineEdit(&dialog);
+    tokenEdit->setText(settings.value("github/token", "").toString());
+    tokenEdit->setEchoMode(QLineEdit::Password);
+    
+    layout->addRow("Username:", userEdit);
+    layout->addRow("Personal Access Token (PAT):", tokenEdit);
+
+    QLabel *info = new QLabel("Note: Passwords are no longer supported by GitHub over HTTPS.\nPlease generate a Personal Access Token (PAT) with 'repo' scope.", &dialog);
+    info->setWordWrap(true);
+    info->setStyleSheet("color: gray;");
+    layout->addRow(info);
+
+    QDialogButtonBox *btnBox = new QDialogButtonBox(QDialogButtonBox::Save | QDialogButtonBox::Cancel, &dialog);
+    layout->addRow(btnBox);
+
+    connect(btnBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(btnBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+
+    if (dialog.exec() == QDialog::Accepted) {
+        settings.setValue("github/username", userEdit->text().trimmed());
+        settings.setValue("github/token", tokenEdit->text().trimmed());
+        m_git->setCredentials(userEdit->text().trimmed(), tokenEdit->text().trimmed());
+        QMessageBox::information(this, "Saved", "Credentials saved successfully.");
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════

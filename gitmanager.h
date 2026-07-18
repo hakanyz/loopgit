@@ -116,9 +116,14 @@ public:
     bool addToGitignore(const QString &path);
     bool commit(const QString &message);
 
-    /* ── Push / Pull (Faz 2) ─────────────────────────── */
+    /* ── Push / Pull / Fetch (Faz 2 & 6) ─────────────── */
     bool push(const QString &remoteName = QStringLiteral("origin"));
     bool pull(const QString &remoteName = QStringLiteral("origin"));
+    bool fetch(const QString &remoteName = QStringLiteral("origin"));
+
+    /* ── Clone & Credentials (Faz 6) ─────────────────── */
+    void setCredentials(const QString &username, const QString &token);
+    bool cloneRepository(const QString &url, const QString &localPath);
 
     /* ── Diff (Faz 3) ────────────────────────────────── */
     QString getWorkdirDiff(const QString &filePath = QString());
@@ -154,6 +159,10 @@ private:
     git_repository *m_repo     = nullptr;
     QString         m_repoPath;
     QString         m_lastError;
+
+    // Credentials for network operations
+    QString m_username;
+    QString m_token;
 
     void setError(const QString &context);
     bool ensureOpen();

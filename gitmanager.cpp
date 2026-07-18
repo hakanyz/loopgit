@@ -635,11 +635,21 @@ bool GitManager::addToGitignore(const QString &path)
 
 int GitManager::credentialCb(void *out, const char *url,
                               const char *usernameFromUrl,
-                              unsigned int allowedTypes, void * /*payload*/)
+                              unsigned int allowedTypes, void *payload)
 {
     git_credential **cred = reinterpret_cast<git_credential **>(out);
+    GitManager *manager = static_cast<GitManager *>(payload);
 
     if (allowedTypes & GIT_CREDENTIAL_USERPASS_PLAINTEXT) {
+        if (manager && !manager->m_token.isEmpty()) {
+            QString user = manager->m_username;
+            if (user.isEmpty() && usernameFromUrl) {
+                user = QString::fromUtf8(usernameFromUrl);
+            }
+            return git_credential_userpass_plaintext_new(
+                cred, user.toUtf8().constData(), manager->m_token.toUtf8().constData());
+        }
+
         bool ok = false;
         QString defUser = usernameFromUrl
                               ? QString::fromUtf8(usernameFromUrl) : QString();
@@ -1436,6 +1446,61 @@ bool GitManager::revertCommit(const QString &commitId)
 
     if (err < 0) {
         setError("Revert failed (check for conflicts)");
+        return false;
+    }
+    return true;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  Faz 6 — Credentials & Remote Operations
+// ═══════════════════════════════════════════════════════════════════
+
+void GitManager::setCredentials(const QString &username, const QString &token)
+{
+    m_username = username;
+    m_token = token;
+}
+
+bool GitManager::cloneRepository(const QString &url, const QString &localPath)
+{
+    git_clone_options clone_opts = GIT_CLONE_OPTIONS_INIT;
+    clone_opts.fetch_opts.callbacks.credentials = reinterpret_cast<git_credential_acquire_cb>(credentialCb);
+    clone_opts.fetch_opts.callbacks.payload = this;
+    
+    git_repository *cloned_repo = nullptr;
+    int err = git_clone(&cloned_repo, url.toUtf8().constData(), localPath.toUtf8().constData(), &clone_opts);
+    
+    if (err < 0) {
+        const git_error *e = git_error_last();
+        setError(QStringLiteral("Failed to clone repository: %1").arg(e ? QString::fromUtf8(e->message) : QStringLiteral("Unknown error")));
+        return false;
+    }
+    
+    git_repository_free(cloned_repo);
+    return openRepository(localPath);
+}
+
+bool GitManager::fetch(const QString &remoteName)
+{
+    if (!ensureOpen()) return false;
+    
+    git_remote *remote = nullptr;
+    int err = git_remote_lookup(&remote, m_repo, remoteName.toUtf8().constData());
+    if (err < 0) {
+        setError(QStringLiteral("Remote '%1' not found").arg(remoteName));
+        return false;
+    }
+    
+    git_fetch_options fetch_opts = GIT_FETCH_OPTIONS_INIT;
+    fetch_opts.callbacks.credentials = reinterpret_cast<git_credential_acquire_cb>(credentialCb);
+    fetch_opts.callbacks.payload = this;
+    
+    err = git_remote_fetch(remote, nullptr, &fetch_opts, nullptr);
+    git_remote_free(remote);
+    
+    if (err < 0) {
+        const git_error *e = git_error_last();
+        setError(QStringLiteral("Fetch failed: %1").arg(e ? QString::fromUtf8(e->message) : QStringLiteral("Unknown error")));
         return false;
     }
     return true;

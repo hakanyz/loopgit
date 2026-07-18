@@ -56,12 +56,16 @@ private slots:
     // ── Push / Pull ─────────────────────────────────────
     void doPush();
     void doPull();
+    void doFetch();
 
     // ── Branch ──────────────────────────────────────────
     void onBranchItemDoubleClicked(QTreeWidgetItem *item, int column);
     void createBranch();
     void deleteBranch();
     void mergeBranch();
+
+    void cloneRepository();
+    void openCredentials();
 
     // ── Commit Graph and Commit Diff ────────────────────
     void onCommitSelected(const QItemSelection &selected, const QItemSelection &deselected);
@@ -128,12 +132,15 @@ private:
 
     // Actions
     QAction *m_actOpen;
+    QAction *m_actClone;
     QAction *m_actClose;
+    QAction *m_actCredentials;
     QAction *m_actRefresh;
-    QAction *m_actPush;
-    QAction *m_actPull;
     QAction *m_actStageAll;
     QAction *m_actUnstageAll;
+    QAction *m_actPush;
+    QAction *m_actPull;
+    QAction *m_actFetch;
     QAction *m_actNewBranch;
     QAction *m_actDeleteBranch;
     QAction *m_actMergeBranch;
