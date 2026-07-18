@@ -831,6 +831,114 @@ QString GitManager::getStagedDiff(const QString &filePath)
 }
 
 // ═══════════════════════════════════════════════════════════════════
+//  Faz 5 — Commit Details (Tree-to-Tree Diff)
+// ═══════════════════════════════════════════════════════════════════
+
+QVector<FileStatusEntry> GitManager::getCommitChangedFiles(const QString &commitId)
+{
+    QVector<FileStatusEntry> result;
+    if (!ensureOpen() || commitId.isEmpty()) return result;
+
+    git_oid oid;
+    if (git_oid_fromstr(&oid, commitId.toUtf8().constData()) < 0) return result;
+
+    git_commit *commit = nullptr;
+    if (git_commit_lookup(&commit, m_repo, &oid) < 0) return result;
+
+    git_tree *tree = nullptr;
+    git_commit_tree(&tree, commit);
+
+    git_tree *parentTree = nullptr;
+    if (git_commit_parentcount(commit) > 0) {
+        git_commit *parent = nullptr;
+        if (git_commit_parent(&parent, commit, 0) == 0) {
+            git_commit_tree(&parentTree, parent);
+            git_commit_free(parent);
+        }
+    }
+
+    git_diff *diff = nullptr;
+    git_diff_options opts = GIT_DIFF_OPTIONS_INIT;
+    if (git_diff_tree_to_tree(&diff, m_repo, parentTree, tree, &opts) == 0) {
+        size_t numDeltas = git_diff_num_deltas(diff);
+        for (size_t i = 0; i < numDeltas; ++i) {
+            const git_diff_delta *delta = git_diff_get_delta(diff, i);
+            FileStatusEntry fse;
+            fse.path = QString::fromUtf8(delta->new_file.path);
+            
+            if (delta->status == GIT_DELTA_ADDED) {
+                fse.worktreeStatus = FileStatusEntry::Added;
+            } else if (delta->status == GIT_DELTA_DELETED) {
+                fse.worktreeStatus = FileStatusEntry::Deleted;
+            } else if (delta->status == GIT_DELTA_MODIFIED) {
+                fse.worktreeStatus = FileStatusEntry::Modified;
+            } else if (delta->status == GIT_DELTA_RENAMED) {
+                fse.worktreeStatus = FileStatusEntry::Renamed;
+                fse.oldPath = QString::fromUtf8(delta->old_file.path);
+            } else {
+                fse.worktreeStatus = FileStatusEntry::Modified; // Fallback
+            }
+            result.append(fse);
+        }
+        git_diff_free(diff);
+    }
+
+    if (tree) git_tree_free(tree);
+    if (parentTree) git_tree_free(parentTree);
+    git_commit_free(commit);
+
+    return result;
+}
+
+QString GitManager::getCommitDiff(const QString &commitId, const QString &filePath)
+{
+    if (!ensureOpen() || commitId.isEmpty()) return QString();
+
+    git_oid oid;
+    if (git_oid_fromstr(&oid, commitId.toUtf8().constData()) < 0) return QString();
+
+    git_commit *commit = nullptr;
+    if (git_commit_lookup(&commit, m_repo, &oid) < 0) return QString();
+
+    git_tree *tree = nullptr;
+    git_commit_tree(&tree, commit);
+
+    git_tree *parentTree = nullptr;
+    if (git_commit_parentcount(commit) > 0) {
+        git_commit *parent = nullptr;
+        if (git_commit_parent(&parent, commit, 0) == 0) {
+            git_commit_tree(&parentTree, parent);
+            git_commit_free(parent);
+        }
+    }
+
+    git_diff *diff = nullptr;
+    git_diff_options opts = GIT_DIFF_OPTIONS_INIT;
+    opts.context_lines = 3;
+
+    QByteArray pathBytes;
+    char *paths[1];
+    if (!filePath.isEmpty()) {
+        pathBytes = filePath.toUtf8();
+        paths[0] = pathBytes.data();
+        opts.pathspec.strings = paths;
+        opts.pathspec.count   = 1;
+    }
+
+    QString result;
+    if (git_diff_tree_to_tree(&diff, m_repo, parentTree, tree, &opts) == 0) {
+        git_diff_print(diff, GIT_DIFF_FORMAT_PATCH, diffPrintCb, &result);
+        git_diff_free(diff);
+    }
+
+    if (tree) git_tree_free(tree);
+    if (parentTree) git_tree_free(parentTree);
+    git_commit_free(commit);
+
+    return result;
+}
+
+// ═══════════════════════════════════════════════════════════════════
 //  Faz 4 — Branch listing
 // ═══════════════════════════════════════════════════════════════════
 

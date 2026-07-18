@@ -218,13 +218,27 @@ void MainWindow::setupCentralWidget()
     m_logTable->setColumnWidth(CommitGraphModel::ColAuthor, 120);
     m_logTable->setColumnWidth(CommitGraphModel::ColDate, 140);
 
+    // ── Commit Files Panel ──────────────────────────────
+    m_commitFilesTree = new QTreeWidget;
+    m_commitFilesTree->setHeaderLabels({QStringLiteral("Status"), QStringLiteral("File")});
+    m_commitFilesTree->setColumnWidth(0, 60);
+    m_commitFilesTree->setRootIsDecorated(false);
+    m_commitFilesTree->setAlternatingRowColors(true);
+
+    // ── Bottom Splitter (Commit Files | Diff) ───────────
+    m_bottomSplitter = new QSplitter(Qt::Horizontal);
+    m_bottomSplitter->addWidget(m_commitFilesTree);
+    m_bottomSplitter->addWidget(m_diffView);
+    m_bottomSplitter->setStretchFactor(0, 1);
+    m_bottomSplitter->setStretchFactor(1, 3);
+
     // ── Splitters ───────────────────────────────────────
-    // Right area: top (log table) | bottom (diff view)
+    // Right area: top (log table) | bottom (files & diff)
     m_rightSplitter = new QSplitter(Qt::Vertical);
     m_rightSplitter->addWidget(m_logTable);
-    m_rightSplitter->addWidget(m_diffView);
+    m_rightSplitter->addWidget(m_bottomSplitter);
     m_rightSplitter->setStretchFactor(0, 5); // Log gets more space
-    m_rightSplitter->setStretchFactor(1, 3); // Diff gets less
+    m_rightSplitter->setStretchFactor(1, 3); // Files + Diff gets less
 
     // Main area: left (file tree + commit) | right (rightSplitter)
     m_mainSplitter = new QSplitter(Qt::Horizontal);
@@ -253,6 +267,12 @@ void MainWindow::connectSignals()
     connect(m_fileTree, &QTreeWidget::itemDoubleClicked,
             this, &MainWindow::onFileItemDoubleClicked);
 
+    connect(m_commitFilesTree, &QTreeWidget::itemClicked,
+            this, &MainWindow::onCommitFileClicked);
+
+    connect(m_logTable->selectionModel(), &QItemSelectionModel::selectionChanged,
+            this, &MainWindow::onCommitSelected);
+
     connect(m_commitBtn, &QPushButton::clicked,
             this, &MainWindow::doCommit);
 
@@ -275,8 +295,10 @@ void MainWindow::connectSignals()
                 setRepoActionsEnabled(false);
                 m_stagedRoot->takeChildren();
                 m_unstagedRoot->takeChildren();
+                m_commitFilesTree->clear();
                 m_diffView->clearDiff();
                 m_logModel->setCommits(QVector<CommitInfo>());
+                m_selectedCommitId.clear();
                 m_branchCombo->clear();
                 m_statusLabel->setText(QStringLiteral("No repository open"));
                 if (!m_watcher->directories().isEmpty())
@@ -639,7 +661,73 @@ void MainWindow::showDiffForItem(QTreeWidgetItem *item)
 
 void MainWindow::onFileItemClicked(QTreeWidgetItem *item, int /*column*/)
 {
+    // Clear commit selection when interacting with local files
+    m_logTable->selectionModel()->clearSelection();
+    m_selectedCommitId.clear();
+    m_commitFilesTree->clear();
     showDiffForItem(item);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  Commit Graph Selection & Diff (Faz 5)
+// ═══════════════════════════════════════════════════════════════════
+
+void MainWindow::onCommitSelected(const QItemSelection &selected, const QItemSelection &deselected)
+{
+    Q_UNUSED(deselected);
+    
+    m_commitFilesTree->clear();
+    m_diffView->clearDiff();
+    
+    if (selected.indexes().isEmpty()) {
+        m_selectedCommitId.clear();
+        return;
+    }
+
+    // Get the hash from the model
+    int row = selected.indexes().first().row();
+    QModelIndex hashIndex = m_logModel->index(row, CommitGraphModel::ColHash);
+    m_selectedCommitId = m_logModel->data(hashIndex).toString();
+
+    // The shortId might not be enough for full lookup in some edges, but GitManager lookup handles short prefixes!
+    // However, if we modified CommitGraphModel to expose full ID it's better. But shortId works in 99% cases.
+    
+    // Fetch changed files for this commit
+    QVector<FileStatusEntry> entries = m_git->getCommitChangedFiles(m_selectedCommitId);
+    
+    for (const auto &entry : entries) {
+        auto *item = new QTreeWidgetItem(m_commitFilesTree);
+        item->setText(0, FileStatusEntry::statusChar(entry.worktreeStatus));
+        item->setText(1, entry.path);
+        item->setData(0, Qt::UserRole, entry.path);
+        
+        QColor color;
+        switch (entry.worktreeStatus) {
+            case FileStatusEntry::Added:    color = QColor("#4EC9B0"); break;
+            case FileStatusEntry::Deleted:  color = QColor("#F14C4C"); break;
+            case FileStatusEntry::Modified: color = QColor("#E2C08D"); break;
+            case FileStatusEntry::Renamed:  color = QColor("#569CD6"); break;
+            default:                        color = QColor("#D4D4D4"); break;
+        }
+        item->setForeground(0, color);
+    }
+}
+
+void MainWindow::onCommitFileClicked(QTreeWidgetItem *item, int /*column*/)
+{
+    if (!item || m_selectedCommitId.isEmpty()) return;
+    
+    // Deselect local workspace tree items to avoid confusion
+    m_fileTree->clearSelection();
+
+    QString path = item->data(0, Qt::UserRole).toString();
+    QString diff = m_git->getCommitDiff(m_selectedCommitId, path);
+    
+    if (diff.isEmpty()) {
+        m_diffView->setDiffText(QStringLiteral("(No diff available for %1 in commit %2)").arg(path, m_selectedCommitId));
+    } else {
+        m_diffView->setDiffText(diff);
+    }
 }
 
 void MainWindow::onFileItemDoubleClicked(QTreeWidgetItem *item, int /*column*/)

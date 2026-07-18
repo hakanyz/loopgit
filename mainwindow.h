@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QItemSelection>
 
 class QTreeWidget;
 class QTreeWidgetItem;
@@ -57,6 +58,10 @@ private slots:
     void deleteBranch();
     void mergeBranch();
 
+    // ── Commit Graph and Commit Diff ────────────────────
+    void onCommitSelected(const QItemSelection &selected, const QItemSelection &deselected);
+    void onCommitFileClicked(QTreeWidgetItem *item, int column);
+
     // ── Misc ────────────────────────────────────────────
     void onRepoChanged(const QString &path);
     void onGitError(const QString &message);
@@ -81,6 +86,7 @@ private:
 
     // UI widgets
     QTreeWidget    *m_fileTree;
+    QTreeWidget    *m_commitFilesTree;
     QTreeWidgetItem *m_stagedRoot;
     QTreeWidgetItem *m_unstagedRoot;
     DiffViewWidget *m_diffView;
@@ -93,8 +99,10 @@ private:
     QLabel         *m_statusLabel;
     QToolBar       *m_toolBar;
     QSplitter      *m_mainSplitter;
-    QSplitter      *m_leftSplitter;
+    QSplitter      *m_bottomSplitter;
     QSplitter      *m_rightSplitter;
+
+    QString        m_selectedCommitId;
 
     // Actions
     QAction *m_actOpen;

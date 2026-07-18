@@ -118,6 +118,10 @@ public:
     /* ── Diff (Faz 3) ────────────────────────────────── */
     QString getWorkdirDiff(const QString &filePath = QString());
     QString getStagedDiff(const QString &filePath = QString());
+    
+    /* ── Commit Details (Faz 5) ──────────────────────── */
+    QVector<FileStatusEntry> getCommitChangedFiles(const QString &commitId);
+    QString getCommitDiff(const QString &commitId, const QString &filePath = QString());
 
     /* ── Branch management (Faz 4) ───────────────────── */
     QVector<BranchInfo> getBranches();
