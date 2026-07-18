@@ -53,7 +53,7 @@ private slots:
     void doPull();
 
     // ── Branch ──────────────────────────────────────────
-    void onBranchChanged(int index);
+    void onBranchItemDoubleClicked(QTreeWidgetItem *item, int column);
     void createBranch();
     void deleteBranch();
     void mergeBranch();
@@ -77,7 +77,7 @@ private:
 
     void updateFileList();
     void updateCommitLog();
-    void updateBranchCombo();
+    void updateBranchesTree();
     void showDiffForItem(QTreeWidgetItem *item);
     void setRepoActionsEnabled(bool enabled);
 
@@ -86,6 +86,7 @@ private:
 
     // UI widgets
     QTreeWidget    *m_fileTree;
+    QTreeWidget    *m_branchesTree;
     QTreeWidget    *m_commitFilesTree;
     QTreeWidgetItem *m_stagedRoot;
     QTreeWidgetItem *m_unstagedRoot;
@@ -95,11 +96,11 @@ private:
     CommitGraphDelegate *m_logDelegate;
     QTextEdit      *m_commitEdit;
     QPushButton    *m_commitBtn;
-    QComboBox      *m_branchCombo;
     QLabel         *m_statusLabel;
     QToolBar       *m_toolBar;
     QSplitter      *m_mainSplitter;
-    QSplitter      *m_bottomSplitter;
+    QSplitter      *m_leftSplitter;
+    QSplitter      *m_centerTopSplitter;
     QSplitter      *m_rightSplitter;
 
     QString        m_selectedCommitId;

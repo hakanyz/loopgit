@@ -122,14 +122,7 @@ void MainWindow::setupToolBar()
     m_toolBar->addAction(m_actRefresh);
     m_toolBar->addSeparator();
 
-    // Branch combo
-    QLabel *brLbl = new QLabel(QStringLiteral("  🌿 Branch: "));
-    m_toolBar->addWidget(brLbl);
-
-    m_branchCombo = new QComboBox;
-    m_branchCombo->setMinimumWidth(180);
-    m_branchCombo->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
-    m_toolBar->addWidget(m_branchCombo);
+    // Branch combo removed (now using Branches Tree on the left)
 }
 
 // ─── Central Widget ────────────────────────────────────────────────
@@ -218,34 +211,46 @@ void MainWindow::setupCentralWidget()
     m_logTable->setColumnWidth(CommitGraphModel::ColAuthor, 120);
     m_logTable->setColumnWidth(CommitGraphModel::ColDate, 140);
 
-    // ── Commit Files Panel ──────────────────────────────
+    // ── Branches Tree (Bottom Left) ─────────────────────
+    m_branchesTree = new QTreeWidget;
+    m_branchesTree->setHeaderLabels({QStringLiteral("Branches")});
+    m_branchesTree->setRootIsDecorated(true);
+    m_branchesTree->setAlternatingRowColors(true);
+
+    // ── Left Splitter (Files/Commit | Branches) ─────────
+    m_leftSplitter = new QSplitter(Qt::Vertical);
+    m_leftSplitter->addWidget(leftPanel);
+    m_leftSplitter->addWidget(m_branchesTree);
+    m_leftSplitter->setStretchFactor(0, 3);
+    m_leftSplitter->setStretchFactor(1, 2);
+
+    // ── Commit Files Panel (Right Top - Right side) ─────
     m_commitFilesTree = new QTreeWidget;
     m_commitFilesTree->setHeaderLabels({QStringLiteral("Status"), QStringLiteral("File")});
     m_commitFilesTree->setColumnWidth(0, 60);
     m_commitFilesTree->setRootIsDecorated(false);
     m_commitFilesTree->setAlternatingRowColors(true);
 
-    // ── Bottom Splitter (Commit Files | Diff) ───────────
-    m_bottomSplitter = new QSplitter(Qt::Horizontal);
-    m_bottomSplitter->addWidget(m_commitFilesTree);
-    m_bottomSplitter->addWidget(m_diffView);
-    m_bottomSplitter->setStretchFactor(0, 1);
-    m_bottomSplitter->setStretchFactor(1, 3);
+    // ── Center Top Splitter (Graph | Commit Files) ──────
+    m_centerTopSplitter = new QSplitter(Qt::Horizontal);
+    m_centerTopSplitter->addWidget(m_logTable);
+    m_centerTopSplitter->addWidget(m_commitFilesTree);
+    m_centerTopSplitter->setStretchFactor(0, 4); // Graph is wider
+    m_centerTopSplitter->setStretchFactor(1, 1); // Files list is narrower
 
-    // ── Splitters ───────────────────────────────────────
-    // Right area: top (log table) | bottom (files & diff)
+    // ── Right Splitter (Top Center | Diff) ──────────────
     m_rightSplitter = new QSplitter(Qt::Vertical);
-    m_rightSplitter->addWidget(m_logTable);
-    m_rightSplitter->addWidget(m_bottomSplitter);
-    m_rightSplitter->setStretchFactor(0, 5); // Log gets more space
-    m_rightSplitter->setStretchFactor(1, 3); // Files + Diff gets less
+    m_rightSplitter->addWidget(m_centerTopSplitter);
+    m_rightSplitter->addWidget(m_diffView);
+    m_rightSplitter->setStretchFactor(0, 5); // Graph+Files gets more vertical space
+    m_rightSplitter->setStretchFactor(1, 3); // Diff gets less
 
-    // Main area: left (file tree + commit) | right (rightSplitter)
+    // ── Main Splitter (Left Splitter | Right Splitter) ──
     m_mainSplitter = new QSplitter(Qt::Horizontal);
-    m_mainSplitter->addWidget(leftPanel);
+    m_mainSplitter->addWidget(m_leftSplitter);
     m_mainSplitter->addWidget(m_rightSplitter);
-    m_mainSplitter->setStretchFactor(0, 1); // Left panel (files)
-    m_mainSplitter->setStretchFactor(1, 4); // Log + Diff gets most space
+    m_mainSplitter->setStretchFactor(0, 1); // Left panels
+    m_mainSplitter->setStretchFactor(1, 4); // Center/Right panels
 
     setCentralWidget(m_mainSplitter);
 }
@@ -276,8 +281,8 @@ void MainWindow::connectSignals()
     connect(m_commitBtn, &QPushButton::clicked,
             this, &MainWindow::doCommit);
 
-    connect(m_branchCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &MainWindow::onBranchChanged);
+    connect(m_branchesTree, &QTreeWidget::itemDoubleClicked,
+            this, &MainWindow::onBranchItemDoubleClicked);
 
     connect(m_git, &GitManager::repositoryOpened,
             this, [this](const QString &path) {
@@ -299,7 +304,7 @@ void MainWindow::connectSignals()
                 m_diffView->clearDiff();
                 m_logModel->setCommits(QVector<CommitInfo>());
                 m_selectedCommitId.clear();
-                m_branchCombo->clear();
+                m_branchesTree->clear();
                 m_statusLabel->setText(QStringLiteral("No repository open"));
                 if (!m_watcher->directories().isEmpty())
                     m_watcher->removePaths(m_watcher->directories());
@@ -509,7 +514,7 @@ void MainWindow::refreshAll()
 
     updateFileList();
     updateCommitLog();
-    updateBranchCombo();
+    updateBranchesTree();
 
     // Status bar summary
     int staged = m_stagedRoot->childCount();
@@ -605,33 +610,35 @@ void MainWindow::updateCommitLog()
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  Branch combo
+//  Branches Tree
 // ═══════════════════════════════════════════════════════════════════
 
-void MainWindow::updateBranchCombo()
+void MainWindow::updateBranchesTree()
 {
-    m_updatingBranch = true;
-    m_branchCombo->clear();
-
+    m_branchesTree->clear();
     QVector<BranchInfo> branches = m_git->getBranches();
-    int headIdx = -1;
 
-    for (int i = 0; i < branches.size(); ++i) {
-        const auto &bi = branches[i];
-        if (bi.isRemote) continue;  // only show local branches in combo
+    QTreeWidgetItem *localRoot = new QTreeWidgetItem(m_branchesTree, {QStringLiteral("Local Branches")});
+    localRoot->setExpanded(true);
+    QTreeWidgetItem *remoteRoot = new QTreeWidgetItem(m_branchesTree, {QStringLiteral("Remote Branches")});
+    remoteRoot->setExpanded(true);
 
+    for (const auto &bi : branches) {
+        QTreeWidgetItem *item = new QTreeWidgetItem;
         QString display = bi.name;
         if (bi.isHead) {
             display = QStringLiteral("● %1").arg(bi.name);
-            headIdx = m_branchCombo->count();
+            item->setData(0, Qt::FontRole, QFont(m_branchesTree->font().family(), -1, QFont::Bold));
         }
-        m_branchCombo->addItem(display, bi.name);
+        item->setText(0, display);
+        item->setData(0, Qt::UserRole, bi.name); // Store full branch name
+
+        if (bi.isRemote) {
+            remoteRoot->addChild(item);
+        } else {
+            localRoot->addChild(item);
+        }
     }
-
-    if (headIdx >= 0)
-        m_branchCombo->setCurrentIndex(headIdx);
-
-    m_updatingBranch = false;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -697,19 +704,29 @@ void MainWindow::onCommitSelected(const QItemSelection &selected, const QItemSel
     
     for (const auto &entry : entries) {
         auto *item = new QTreeWidgetItem(m_commitFilesTree);
-        item->setText(0, FileStatusEntry::statusChar(entry.worktreeStatus));
+        QString statusText = FileStatusEntry::statusChar(entry.worktreeStatus);
+        item->setText(0, statusText);
         item->setText(1, entry.path);
         item->setData(0, Qt::UserRole, entry.path);
+        item->setTextAlignment(0, Qt::AlignCenter);
         
-        QColor color;
+        QColor bgColor;
+        QColor fgColor = Qt::white;
+        
         switch (entry.worktreeStatus) {
-            case FileStatusEntry::Added:    color = QColor("#4EC9B0"); break;
-            case FileStatusEntry::Deleted:  color = QColor("#F14C4C"); break;
-            case FileStatusEntry::Modified: color = QColor("#E2C08D"); break;
-            case FileStatusEntry::Renamed:  color = QColor("#569CD6"); break;
-            default:                        color = QColor("#D4D4D4"); break;
+            case FileStatusEntry::Added:    bgColor = QColor("#238636"); break; // Green
+            case FileStatusEntry::Deleted:  bgColor = QColor("#DA3633"); break; // Red
+            case FileStatusEntry::Modified: bgColor = QColor("#007ACC"); break; // Blue
+            case FileStatusEntry::Renamed:  bgColor = QColor("#8957E5"); break; // Purple
+            default:                        bgColor = QColor("#7A7A7A"); break; // Gray
         }
-        item->setForeground(0, color);
+        
+        // Make the Status column look like a badge
+        item->setBackground(0, bgColor);
+        item->setForeground(0, fgColor);
+        
+        // Optionally color the text of the file path column
+        item->setForeground(1, bgColor.lighter(130));
     }
 }
 
@@ -838,19 +855,24 @@ void MainWindow::doPull()
 //  Branch operations
 // ═══════════════════════════════════════════════════════════════════
 
-void MainWindow::onBranchChanged(int index)
+void MainWindow::onBranchItemDoubleClicked(QTreeWidgetItem *item, int column)
 {
-    if (m_updatingBranch || index < 0) return;
+    Q_UNUSED(column);
+    if (!item || item->parent() == nullptr) return; // Ignore clicks on Root items
 
-    QString branchName = m_branchCombo->itemData(index).toString();
+    QString branchName = item->data(0, Qt::UserRole).toString();
+    if (branchName.isEmpty()) return;
+
     QString currentBranch = m_git->getCurrentBranch();
-
     if (branchName == currentBranch) return;
 
     if (m_git->checkoutBranch(branchName)) {
         statusBar()->showMessage(
             QStringLiteral("Switched to branch '%1'").arg(branchName), 3000);
         refreshAll();
+    } else {
+        QMessageBox::warning(this, QStringLiteral("Checkout Failed"),
+                             QStringLiteral("Failed to checkout branch. Do you have uncommitted changes?"));
     }
 }
 
@@ -952,7 +974,6 @@ void MainWindow::setRepoActionsEnabled(bool enabled)
     m_actMergeBranch->setEnabled(enabled);
     m_commitBtn->setEnabled(enabled);
     m_commitEdit->setEnabled(enabled);
-    m_branchCombo->setEnabled(enabled);
 }
 
 void MainWindow::onRepoChanged(const QString & /*path*/)
