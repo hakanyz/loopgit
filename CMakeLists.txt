@@ -13,7 +13,7 @@ if(DEFINED CMAKE_C_COMPILER AND CMAKE_C_COMPILER MATCHES "mingw")
     endif()
 endif()
 
-project(QtGitClient VERSION 0.1 LANGUAGES C CXX)
+project(GitZen VERSION 0.1 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -72,42 +72,42 @@ set(PROJECT_SOURCES
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
-    qt_add_executable(QtGitClient
+    qt_add_executable(GitZen
         MANUAL_FINALIZATION
         ${PROJECT_SOURCES}
     )
 else()
     if(ANDROID)
-        add_library(QtGitClient SHARED ${PROJECT_SOURCES})
+        add_library(GitZen SHARED ${PROJECT_SOURCES})
     else()
-        add_executable(QtGitClient ${PROJECT_SOURCES})
+        add_executable(GitZen ${PROJECT_SOURCES})
     endif()
 endif()
 
-target_link_libraries(QtGitClient PRIVATE
+target_link_libraries(GitZen PRIVATE
     Qt${QT_VERSION_MAJOR}::Widgets
     ${LIBGIT2_LIBRARIES}
 )
 
 # When using FetchContent, we need to add libgit2 include dirs manually
 if(NOT unofficial-libgit2_FOUND AND NOT libgit2_FOUND)
-    target_include_directories(QtGitClient PRIVATE
+    target_include_directories(GitZen PRIVATE
         ${libgit2_SOURCE_DIR}/include
     )
 endif()
 
-set_target_properties(QtGitClient PROPERTIES
+set_target_properties(GitZen PROPERTIES
     MACOSX_BUNDLE TRUE
     WIN32_EXECUTABLE TRUE
 )
 
 include(GNUInstallDirs)
-install(TARGETS QtGitClient
+install(TARGETS GitZen
     BUNDLE  DESTINATION .
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
 if(QT_VERSION_MAJOR EQUAL 6)
-    qt_finalize_executable(QtGitClient)
+    qt_finalize_executable(GitZen)
 endif()

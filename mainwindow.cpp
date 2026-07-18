@@ -58,7 +58,7 @@ MainWindow::~MainWindow() = default;
 
 void MainWindow::setupUi()
 {
-    setWindowTitle(QStringLiteral("QtGitClient"));
+    setWindowTitle(QStringLiteral("GitZen"));
     resize(1280, 800);
 
     setupMenuBar();
@@ -483,13 +483,13 @@ void MainWindow::connectSignals()
 
     connect(m_git, &GitManager::repositoryOpened,
             this, [this](const QString &path) {
-                setWindowTitle(QStringLiteral("QtGitClient — %1").arg(path));
+                setWindowTitle(QStringLiteral("GitZen — %1").arg(path));
                 setRepoActionsEnabled(true);
                 
                 m_dirModel->setRootPath(path);
                 m_dirTree->setRootIndex(m_dirModel->index(path));
 
-                QSettings settings("MyCompany", "QtGitClient");
+                QSettings settings("MyCompany", "GitZen");
                 QString user = settings.value("github/username", "").toString();
                 QString token = settings.value("github/token", "").toString();
                 m_git->setCredentials(user, token);
@@ -501,7 +501,7 @@ void MainWindow::connectSignals()
 
     connect(m_git, &GitManager::repositoryClosed,
             this, [this]() {
-                setWindowTitle(QStringLiteral("QtGitClient"));
+                setWindowTitle(QStringLiteral("GitZen"));
                 setRepoActionsEnabled(false);
                 
                 m_dirModel->setRootPath(QString());
@@ -1106,7 +1106,7 @@ void MainWindow::cloneRepository()
 
         if (url.isEmpty() || dest.isEmpty()) return;
 
-        QSettings settings("MyCompany", "QtGitClient");
+        QSettings settings("MyCompany", "GitZen");
         m_git->setCredentials(settings.value("github/username", "").toString(), settings.value("github/token", "").toString());
 
         QProgressDialog progress("Cloning repository...", "Cancel", 0, 0, this);
@@ -1128,7 +1128,7 @@ void MainWindow::cloneRepository()
 
 void MainWindow::openCredentials()
 {
-    QSettings settings("MyCompany", "QtGitClient");
+    QSettings settings("MyCompany", "GitZen");
 
     QDialog dialog(this);
     dialog.setWindowTitle("GitHub Credentials");
