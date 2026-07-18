@@ -129,26 +129,32 @@ void MainWindow::setupToolBar()
 
 void MainWindow::setupCentralWidget()
 {
-    // ── Left panel: file tree + commit area ─────────────
-    m_fileTree = new QTreeWidget;
-    m_fileTree->setHeaderLabels({QStringLiteral("Status"), QStringLiteral("File")});
-    m_fileTree->setColumnWidth(0, 60);
-    m_fileTree->setRootIsDecorated(true);
-    m_fileTree->setSelectionMode(QAbstractItemView::ExtendedSelection);
-    m_fileTree->setAlternatingRowColors(true);
+    // ── Branches Tree (Left Panel) ──────────────────────
+    m_branchesTree = new QTreeWidget;
+    m_branchesTree->setHeaderLabels({QStringLiteral("Branches")});
+    m_branchesTree->setRootIsDecorated(true);
+    m_branchesTree->setAlternatingRowColors(true);
 
-    // Root items for staged / unstaged groups
-    m_stagedRoot = new QTreeWidgetItem(m_fileTree,
-                       {QStringLiteral(""), QStringLiteral("Staged Changes")});
+    // ── Commit Files Panel (Right Top - Right side) ─────
+    m_commitFilesTree = new QTreeWidget;
+    m_commitFilesTree->setHeaderLabels({QStringLiteral("Status"), QStringLiteral("File")});
+    m_commitFilesTree->setColumnWidth(0, 80);
+    m_commitFilesTree->setRootIsDecorated(true);
+    m_commitFilesTree->setAlternatingRowColors(true);
+    m_commitFilesTree->setSelectionMode(QAbstractItemView::ExtendedSelection);
+
+    // Roots for local changes (only visible when WORKING_TREE is selected)
+    m_stagedRoot = new QTreeWidgetItem(m_commitFilesTree, {QStringLiteral(""), QStringLiteral("Staged Changes")});
     m_stagedRoot->setExpanded(true);
     m_stagedRoot->setFlags(Qt::ItemIsEnabled);
+    m_stagedRoot->setHidden(true);
 
-    m_unstagedRoot = new QTreeWidgetItem(m_fileTree,
-                        {QStringLiteral(""), QStringLiteral("Unstaged Changes")});
+    m_unstagedRoot = new QTreeWidgetItem(m_commitFilesTree, {QStringLiteral(""), QStringLiteral("Unstaged Changes")});
     m_unstagedRoot->setExpanded(true);
     m_unstagedRoot->setFlags(Qt::ItemIsEnabled);
+    m_unstagedRoot->setHidden(true);
 
-    // Stage / unstage buttons
+    // ── Commit Panel (Buttons & Input) ──────────────────
     QPushButton *stageBtn   = new QPushButton(QStringLiteral("▲ Stage"));
     QPushButton *unstageBtn = new QPushButton(QStringLiteral("▼ Unstage"));
     QPushButton *stageAllBtn   = new QPushButton(QStringLiteral("▲▲ Stage All"));
@@ -166,7 +172,6 @@ void MainWindow::setupCentralWidget()
     stageBtnLayout->addWidget(stageAllBtn);
     stageBtnLayout->addWidget(unstageAllBtn);
 
-    // Commit message
     QLabel *commitLabel = new QLabel(QStringLiteral("Commit Message:"));
     m_commitEdit = new QTextEdit;
     m_commitEdit->setPlaceholderText(QStringLiteral("Enter commit message..."));
@@ -175,17 +180,25 @@ void MainWindow::setupCentralWidget()
     m_commitBtn = new QPushButton(QStringLiteral("✓ Commit"));
     m_commitBtn->setMinimumHeight(32);
 
-    QVBoxLayout *leftLayout = new QVBoxLayout;
-    leftLayout->setContentsMargins(4, 4, 4, 4);
-    leftLayout->setSpacing(4);
-    leftLayout->addWidget(m_fileTree, 1);
-    leftLayout->addLayout(stageBtnLayout);
-    leftLayout->addWidget(commitLabel);
-    leftLayout->addWidget(m_commitEdit);
-    leftLayout->addWidget(m_commitBtn);
+    QVBoxLayout *commitPanelLayout = new QVBoxLayout;
+    commitPanelLayout->setContentsMargins(4, 4, 4, 4);
+    commitPanelLayout->setSpacing(4);
+    commitPanelLayout->addLayout(stageBtnLayout);
+    commitPanelLayout->addWidget(commitLabel);
+    commitPanelLayout->addWidget(m_commitEdit);
+    commitPanelLayout->addWidget(m_commitBtn);
 
-    QWidget *leftPanel = new QWidget;
-    leftPanel->setLayout(leftLayout);
+    m_commitPanelWidget = new QWidget;
+    m_commitPanelWidget->setLayout(commitPanelLayout);
+    m_commitPanelWidget->setVisible(false); // Hidden by default
+
+    QWidget *rightTopWidget = new QWidget;
+    QVBoxLayout *rightTopLayout = new QVBoxLayout;
+    rightTopLayout->setContentsMargins(0, 0, 0, 0);
+    rightTopLayout->setSpacing(0);
+    rightTopLayout->addWidget(m_commitFilesTree, 1);
+    rightTopLayout->addWidget(m_commitPanelWidget, 0);
+    rightTopWidget->setLayout(rightTopLayout);
 
     // ── Right panel: diff view ──────────────────────────
     m_diffView = new DiffViewWidget;
@@ -211,46 +224,26 @@ void MainWindow::setupCentralWidget()
     m_logTable->setColumnWidth(CommitGraphModel::ColAuthor, 120);
     m_logTable->setColumnWidth(CommitGraphModel::ColDate, 140);
 
-    // ── Branches Tree (Bottom Left) ─────────────────────
-    m_branchesTree = new QTreeWidget;
-    m_branchesTree->setHeaderLabels({QStringLiteral("Branches")});
-    m_branchesTree->setRootIsDecorated(true);
-    m_branchesTree->setAlternatingRowColors(true);
-
-    // ── Left Splitter (Files/Commit | Branches) ─────────
-    m_leftSplitter = new QSplitter(Qt::Vertical);
-    m_leftSplitter->addWidget(leftPanel);
-    m_leftSplitter->addWidget(m_branchesTree);
-    m_leftSplitter->setStretchFactor(0, 3);
-    m_leftSplitter->setStretchFactor(1, 2);
-
-    // ── Commit Files Panel (Right Top - Right side) ─────
-    m_commitFilesTree = new QTreeWidget;
-    m_commitFilesTree->setHeaderLabels({QStringLiteral("Status"), QStringLiteral("File")});
-    m_commitFilesTree->setColumnWidth(0, 60);
-    m_commitFilesTree->setRootIsDecorated(false);
-    m_commitFilesTree->setAlternatingRowColors(true);
-
     // ── Center Top Splitter (Graph | Commit Files) ──────
     m_centerTopSplitter = new QSplitter(Qt::Horizontal);
     m_centerTopSplitter->addWidget(m_logTable);
-    m_centerTopSplitter->addWidget(m_commitFilesTree);
-    m_centerTopSplitter->setStretchFactor(0, 4); // Graph is wider
-    m_centerTopSplitter->setStretchFactor(1, 1); // Files list is narrower
+    m_centerTopSplitter->addWidget(rightTopWidget);
+    m_centerTopSplitter->setStretchFactor(0, 5); // Graph is wider
+    m_centerTopSplitter->setStretchFactor(1, 2); // Files list is narrower
 
     // ── Right Splitter (Top Center | Diff) ──────────────
     m_rightSplitter = new QSplitter(Qt::Vertical);
     m_rightSplitter->addWidget(m_centerTopSplitter);
     m_rightSplitter->addWidget(m_diffView);
-    m_rightSplitter->setStretchFactor(0, 5); // Graph+Files gets more vertical space
+    m_rightSplitter->setStretchFactor(0, 6); // Graph+Files gets more vertical space
     m_rightSplitter->setStretchFactor(1, 3); // Diff gets less
 
-    // ── Main Splitter (Left Splitter | Right Splitter) ──
+    // ── Main Splitter (Branches | Right Splitter) ───────
     m_mainSplitter = new QSplitter(Qt::Horizontal);
-    m_mainSplitter->addWidget(m_leftSplitter);
+    m_mainSplitter->addWidget(m_branchesTree);
     m_mainSplitter->addWidget(m_rightSplitter);
-    m_mainSplitter->setStretchFactor(0, 1); // Left panels
-    m_mainSplitter->setStretchFactor(1, 4); // Center/Right panels
+    m_mainSplitter->setStretchFactor(0, 1); // Branches panel
+    m_mainSplitter->setStretchFactor(1, 6); // Center/Right panels
 
     setCentralWidget(m_mainSplitter);
 }
@@ -267,9 +260,7 @@ void MainWindow::setupStatusBar()
 
 void MainWindow::connectSignals()
 {
-    connect(m_fileTree, &QTreeWidget::itemClicked,
-            this, &MainWindow::onFileItemClicked);
-    connect(m_fileTree, &QTreeWidget::itemDoubleClicked,
+    connect(m_commitFilesTree, &QTreeWidget::itemDoubleClicked,
             this, &MainWindow::onFileItemDoubleClicked);
 
     connect(m_commitFilesTree, &QTreeWidget::itemClicked,
@@ -532,16 +523,11 @@ void MainWindow::refreshAll()
 
 void MainWindow::updateFileList()
 {
-    // Save current selection
-    QTreeWidgetItem *prev = m_fileTree->currentItem();
-    QString prevPath = prev ? prev->data(0, Qt::UserRole).toString() : QString();
-
     // Clear children but keep root items
     qDeleteAll(m_stagedRoot->takeChildren());
     qDeleteAll(m_unstagedRoot->takeChildren());
 
     QVector<FileStatusEntry> entries = m_git->getFileStatus();
-    QTreeWidgetItem *toSelect = nullptr;
 
     for (const auto &entry : entries) {
         // Staged
@@ -551,19 +537,15 @@ void MainWindow::updateFileList()
             item->setText(1, entry.path);
             item->setData(0, Qt::UserRole, entry.path);
             item->setData(0, Qt::UserRole + 1, true);  // isStaged
-
-            // Color-code the status character
-            QColor color;
-            switch (entry.indexStatus) {
-                case FileStatusEntry::Added:    color = QColor("#4EC9B0"); break;
-                case FileStatusEntry::Deleted:  color = QColor("#F14C4C"); break;
-                case FileStatusEntry::Modified: color = QColor("#E2C08D"); break;
-                case FileStatusEntry::Renamed:  color = QColor("#569CD6"); break;
-                default:                        color = QColor("#D4D4D4"); break;
-            }
-            item->setForeground(0, color);
-
-            if (entry.path == prevPath) toSelect = item;
+            item->setTextAlignment(0, Qt::AlignCenter);
+            
+            QColor bgColor = QColor("#238636"); // default green
+            if (entry.indexStatus == FileStatusEntry::Deleted) bgColor = QColor("#DA3633");
+            else if (entry.indexStatus == FileStatusEntry::Modified) bgColor = QColor("#007ACC");
+            else if (entry.indexStatus == FileStatusEntry::Renamed) bgColor = QColor("#8957E5");
+            
+            item->setBackground(0, bgColor);
+            item->setForeground(0, Qt::white);
         }
 
         // Unstaged
@@ -573,31 +555,22 @@ void MainWindow::updateFileList()
             item->setText(1, entry.path);
             item->setData(0, Qt::UserRole, entry.path);
             item->setData(0, Qt::UserRole + 1, false);  // isStaged
-
-            QColor color;
-            switch (entry.worktreeStatus) {
-                case FileStatusEntry::Untracked: color = QColor("#73C991"); break;
-                case FileStatusEntry::Deleted:   color = QColor("#F14C4C"); break;
-                case FileStatusEntry::Modified:  color = QColor("#E2C08D"); break;
-                default:                         color = QColor("#D4D4D4"); break;
-            }
-            item->setForeground(0, color);
-
-            if (entry.path == prevPath && !toSelect) toSelect = item;
+            item->setTextAlignment(0, Qt::AlignCenter);
+            
+            QColor bgColor = QColor("#238636"); // default green
+            if (entry.worktreeStatus == FileStatusEntry::Deleted) bgColor = QColor("#DA3633");
+            else if (entry.worktreeStatus == FileStatusEntry::Modified) bgColor = QColor("#007ACC");
+            else if (entry.worktreeStatus == FileStatusEntry::Renamed) bgColor = QColor("#8957E5");
+            else if (entry.worktreeStatus == FileStatusEntry::Untracked) bgColor = QColor("#7A7A7A"); // Gray for untracked
+            
+            item->setBackground(0, bgColor);
+            item->setForeground(0, Qt::white);
         }
     }
 
     // Update root item labels
-    m_stagedRoot->setText(1,
-        QStringLiteral("Staged Changes (%1)").arg(m_stagedRoot->childCount()));
-    m_unstagedRoot->setText(1,
-        QStringLiteral("Unstaged Changes (%1)").arg(m_unstagedRoot->childCount()));
-
-    // Restore selection
-    if (toSelect) {
-        m_fileTree->setCurrentItem(toSelect);
-        showDiffForItem(toSelect);
-    }
+    m_stagedRoot->setText(1, QStringLiteral("Staged Changes (%1)").arg(m_stagedRoot->childCount()));
+    m_unstagedRoot->setText(1, QStringLiteral("Unstaged Changes (%1)").arg(m_unstagedRoot->childCount()));
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -645,35 +618,7 @@ void MainWindow::updateBranchesTree()
 //  Diff display
 // ═══════════════════════════════════════════════════════════════════
 
-void MainWindow::showDiffForItem(QTreeWidgetItem *item)
-{
-    if (!item || item == m_stagedRoot || item == m_unstagedRoot) {
-        m_diffView->clearDiff();
-        return;
-    }
-
-    QString path    = item->data(0, Qt::UserRole).toString();
-    bool    isStaged = item->data(0, Qt::UserRole + 1).toBool();
-
-    QString diff = isStaged ? m_git->getStagedDiff(path)
-                            : m_git->getWorkdirDiff(path);
-
-    if (diff.isEmpty()) {
-        m_diffView->setDiffText(
-            QStringLiteral("(No diff available for %1)").arg(path));
-    } else {
-        m_diffView->setDiffText(diff);
-    }
-}
-
-void MainWindow::onFileItemClicked(QTreeWidgetItem *item, int /*column*/)
-{
-    // Clear commit selection when interacting with local files
-    m_logTable->selectionModel()->clearSelection();
-    m_selectedCommitId.clear();
-    m_commitFilesTree->clear();
-    showDiffForItem(item);
-}
+    // Show diff for item is now handled directly via onCommitFileClicked
 
 // ═══════════════════════════════════════════════════════════════════
 //  Commit Graph Selection & Diff (Faz 5)
@@ -683,21 +628,37 @@ void MainWindow::onCommitSelected(const QItemSelection &selected, const QItemSel
 {
     Q_UNUSED(deselected);
     
-    m_commitFilesTree->clear();
+    // Clear previously added commit file items, but KEEP the staged/unstaged roots
+    for (int i = m_commitFilesTree->topLevelItemCount() - 1; i >= 0; --i) {
+        QTreeWidgetItem *item = m_commitFilesTree->topLevelItem(i);
+        if (item != m_stagedRoot && item != m_unstagedRoot) {
+            delete item;
+        }
+    }
     m_diffView->clearDiff();
     
     if (selected.indexes().isEmpty()) {
         m_selectedCommitId.clear();
+        m_commitPanelWidget->hide();
+        m_stagedRoot->setHidden(true);
+        m_unstagedRoot->setHidden(true);
         return;
     }
 
-    // Get the hash from the model
     int row = selected.indexes().first().row();
     QModelIndex hashIndex = m_logModel->index(row, CommitGraphModel::ColHash);
     m_selectedCommitId = m_logModel->data(hashIndex).toString();
-
-    // The shortId might not be enough for full lookup in some edges, but GitManager lookup handles short prefixes!
-    // However, if we modified CommitGraphModel to expose full ID it's better. But shortId works in 99% cases.
+    
+    if (m_selectedCommitId == "WORKING_TREE") {
+        m_commitPanelWidget->show();
+        m_stagedRoot->setHidden(false);
+        m_unstagedRoot->setHidden(false);
+        return;
+    }
+    
+    m_commitPanelWidget->hide();
+    m_stagedRoot->setHidden(true);
+    m_unstagedRoot->setHidden(true);
     
     // Fetch changed files for this commit
     QVector<FileStatusEntry> entries = m_git->getCommitChangedFiles(m_selectedCommitId);
@@ -721,25 +682,32 @@ void MainWindow::onCommitSelected(const QItemSelection &selected, const QItemSel
             default:                        bgColor = QColor("#7A7A7A"); break; // Gray
         }
         
-        // Make the Status column look like a badge
         item->setBackground(0, bgColor);
         item->setForeground(0, fgColor);
-        
-        // Optionally color the text of the file path column
         item->setForeground(1, bgColor.lighter(130));
     }
 }
 
 void MainWindow::onCommitFileClicked(QTreeWidgetItem *item, int /*column*/)
 {
-    if (!item || m_selectedCommitId.isEmpty()) return;
-    
-    // Deselect local workspace tree items to avoid confusion
-    m_fileTree->clearSelection();
+    if (!item) return;
 
     QString path = item->data(0, Qt::UserRole).toString();
-    QString diff = m_git->getCommitDiff(m_selectedCommitId, path);
+    if (path.isEmpty()) return; // Ignored root items
     
+    if (m_selectedCommitId == "WORKING_TREE") {
+        bool isStaged = item->data(0, Qt::UserRole + 1).toBool();
+        QString diff = isStaged ? m_git->getStagedDiff(path)
+                                : m_git->getWorkdirDiff(path);
+        if (diff.isEmpty()) {
+            m_diffView->setDiffText(QStringLiteral("(No diff available for %1)").arg(path));
+        } else {
+            m_diffView->setDiffText(diff);
+        }
+        return;
+    }
+
+    QString diff = m_git->getCommitDiff(m_selectedCommitId, path);
     if (diff.isEmpty()) {
         m_diffView->setDiffText(QStringLiteral("(No diff available for %1 in commit %2)").arg(path, m_selectedCommitId));
     } else {
@@ -769,7 +737,7 @@ void MainWindow::onFileItemDoubleClicked(QTreeWidgetItem *item, int /*column*/)
 
 void MainWindow::stageSelected()
 {
-    auto items = m_fileTree->selectedItems();
+    auto items = m_commitFilesTree->selectedItems();
     for (auto *item : items) {
         if (item == m_stagedRoot || item == m_unstagedRoot) continue;
         bool isStaged = item->data(0, Qt::UserRole + 1).toBool();
@@ -782,7 +750,7 @@ void MainWindow::stageSelected()
 
 void MainWindow::unstageSelected()
 {
-    auto items = m_fileTree->selectedItems();
+    auto items = m_commitFilesTree->selectedItems();
     for (auto *item : items) {
         if (item == m_stagedRoot || item == m_unstagedRoot) continue;
         bool isStaged = item->data(0, Qt::UserRole + 1).toBool();

@@ -309,6 +309,39 @@ QVector<CommitInfo> GitManager::getLog(int maxCount)
     }
 
     git_revwalk_free(walker);
+
+    // ── Inject "Working Tree" dummy commit at the top
+    git_reference *head = nullptr;
+    QString headHash;
+    if (git_repository_head(&head, m_repo) == 0) {
+        const git_oid *oid = git_reference_target(head);
+        char buf[41];
+        git_oid_tostr(buf, sizeof(buf), oid);
+        headHash = QString::fromUtf8(buf);
+        git_reference_free(head);
+    }
+
+    CommitInfo wt;
+    wt.id = QStringLiteral("WORKING_TREE");
+    wt.shortId = QStringLiteral("WIP");
+    
+    // Check if there are actual changes
+    int changesCount = getFileStatus().size();
+    if (changesCount > 0) {
+        wt.message = QStringLiteral("Working Tree / Index (%1 changed)").arg(changesCount);
+    } else {
+        wt.message = QStringLiteral("Working Tree / Index (clean)");
+    }
+    
+    wt.summary = wt.message;
+    wt.authorName = QStringLiteral("*");
+    wt.date = QDateTime::currentDateTime();
+    if (!headHash.isEmpty()) {
+        wt.parentIds.append(headHash);
+    }
+    
+    result.prepend(wt);
+
     return result;
 }
 

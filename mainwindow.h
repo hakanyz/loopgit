@@ -36,7 +36,6 @@ private slots:
     void refreshAll();
 
     // ── File list ───────────────────────────────────────
-    void onFileItemClicked(QTreeWidgetItem *item, int column);
     void onFileItemDoubleClicked(QTreeWidgetItem *item, int column);
 
     // ── Stage / Unstage ─────────────────────────────────
@@ -85,11 +84,11 @@ private:
     GitManager     *m_git;
 
     // UI widgets
-    QTreeWidget    *m_fileTree;
     QTreeWidget    *m_branchesTree;
     QTreeWidget    *m_commitFilesTree;
     QTreeWidgetItem *m_stagedRoot;
     QTreeWidgetItem *m_unstagedRoot;
+    QWidget        *m_commitPanelWidget;
     DiffViewWidget *m_diffView;
     QTableView     *m_logTable;
     CommitGraphModel *m_logModel;
