@@ -26,7 +26,8 @@ GitZen uses CMake as its build system. The build process will automatically fetc
 - CMake 3.16+
 - Qt6 (Widgets module)
 
-### Windows (MinGW / MSVC)
+### Build Steps (Linux, macOS, Windows)
+
 ```bash
 git clone https://github.com/hakanyz/gitzen.git
 cd gitzen
@@ -38,7 +39,9 @@ cmake ..
 cmake --build .
 ```
 
-After building, you can run the executable directly from the build directory.
+After building, you can run the executable directly from the build directory:
+- On Linux/macOS: `./GitZen`
+- On Windows: `.\GitZen.exe`
 
 ## Contributing
 
