@@ -15,6 +15,9 @@ class QSplitter;
 class QFileSystemWatcher;
 class QAction;
 class QToolBar;
+class QStackedWidget;
+class QTreeView;
+class QFileSystemModel;
 
 class GitManager;
 class DiffViewWidget;
@@ -47,6 +50,9 @@ private slots:
     // ── Commit ──────────────────────────────────────────
     void doCommit();
 
+    // ── Perspectives ────────────────────────────────────
+    void switchPerspective(int index);
+
     // ── Push / Pull ─────────────────────────────────────
     void doPush();
     void doPull();
@@ -60,6 +66,8 @@ private slots:
     // ── Commit Graph and Commit Diff ────────────────────
     void onCommitSelected(const QItemSelection &selected, const QItemSelection &deselected);
     void onCommitFileClicked(QTreeWidgetItem *item, int column);
+    void showCommitContextMenu(const QPoint &pos);
+    void showBranchContextMenu(const QPoint &pos);
 
     // ── Misc ────────────────────────────────────────────
     void onRepoChanged(const QString &path);
@@ -83,16 +91,29 @@ private:
     // ── Members ─────────────────────────────────────────
     GitManager     *m_git;
 
-    // UI widgets
-    QTreeWidget    *m_branchesTree;
-    QTreeWidget    *m_commitFilesTree;
+    // Perspectives
+    QStackedWidget *m_stackedWidget;
+    QAction        *m_actLocalFiles;
+    QAction        *m_actHistory;
+
+    // Local Files Perspective
+    QTreeView      *m_dirTree;
+    QFileSystemModel *m_dirModel;
+    QTreeWidget    *m_localChangesTree;
     QTreeWidgetItem *m_stagedRoot;
     QTreeWidgetItem *m_unstagedRoot;
     QWidget        *m_commitPanelWidget;
-    DiffViewWidget *m_diffView;
+    DiffViewWidget *m_localDiffView;
+
+    // History Perspective
+    QTreeWidget    *m_branchesTree;
+    QTreeWidget    *m_historyFilesTree;
+    DiffViewWidget *m_historyDiffView;
     QTableView     *m_logTable;
     CommitGraphModel *m_logModel;
     CommitGraphDelegate *m_logDelegate;
+    QLabel         *m_commitDetailsLabel;
+
     QTextEdit      *m_commitEdit;
     QPushButton    *m_commitBtn;
     QLabel         *m_statusLabel;

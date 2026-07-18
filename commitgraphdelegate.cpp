@@ -49,7 +49,14 @@ void CommitGraphDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
     };
 
     // Draw incoming edges (from children above)
-    for (const GraphEdge &edge : node.edgesIn) {
+    QList<GraphEdge> sortedInEdges = node.edgesIn;
+    std::sort(sortedInEdges.begin(), sortedInEdges.end(), [](const GraphEdge &a, const GraphEdge &b) {
+        bool aIsStraight = (a.fromLane == a.toLane);
+        bool bIsStraight = (b.fromLane == b.toLane);
+        return aIsStraight && !bIsStraight;
+    });
+
+    for (const GraphEdge &edge : sortedInEdges) {
         painter->setPen(QPen(edge.color, 2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
         
         QPainterPath path;
@@ -70,7 +77,14 @@ void CommitGraphDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
     }
 
     // Draw outgoing edges (to parents below)
-    for (const GraphEdge &edge : node.edgesOut) {
+    QList<GraphEdge> sortedOutEdges = node.edgesOut;
+    std::sort(sortedOutEdges.begin(), sortedOutEdges.end(), [](const GraphEdge &a, const GraphEdge &b) {
+        bool aIsStraight = (a.fromLane == a.toLane);
+        bool bIsStraight = (b.fromLane == b.toLane);
+        return aIsStraight && !bIsStraight; // true if a is straight and b is not
+    });
+
+    for (const GraphEdge &edge : sortedOutEdges) {
         painter->setPen(QPen(edge.color, 2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
         
         QPainterPath path;

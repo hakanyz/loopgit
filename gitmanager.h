@@ -71,12 +71,14 @@ struct CommitInfo {
     QString  authorEmail;
     QDateTime date;
     QStringList parentIds; // full SHA-1 hex of parents
+    QStringList refs;      // branch names pointing to this commit
 };
 
 struct BranchInfo {
     QString name;
     bool isRemote = false;
     bool isHead   = false;
+    QString targetHash;
 };
 
 // ─── GitManager ────────────────────────────────────────────────────
@@ -126,6 +128,7 @@ public:
     /* ── Branch management (Faz 4) ───────────────────── */
     QVector<BranchInfo> getBranches();
     bool createBranch(const QString &name);
+    bool createBranchAt(const QString &name, const QString &commitId);
     bool checkoutBranch(const QString &name);
     bool mergeBranch(const QString &name);
     bool deleteBranch(const QString &name);

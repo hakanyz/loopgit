@@ -14,7 +14,11 @@
 #include <QPushButton>
 #include <QTextEdit>
 #include <QTableView>
+#include <QMenu>
 #include <QHeaderView>
+#include <QStackedWidget>
+#include <QFileSystemModel>
+#include <QActionGroup>
 #include "commitgraphmodel.h"
 #include "commitgraphdelegate.h"
 #include <QLabel>
@@ -112,49 +116,65 @@ void MainWindow::setupToolBar()
 {
     m_toolBar = addToolBar(QStringLiteral("Main"));
     m_toolBar->setMovable(false);
-    m_toolBar->setIconSize(QSize(32, 32));
-    m_toolBar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
+    m_toolBar->setIconSize(QSize(24, 24));
+    m_toolBar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
 
-    m_toolBar->addAction(m_actOpen);
+    m_actLocalFiles = new QAction(QStringLiteral("📁 Local Files"), this);
+    m_actLocalFiles->setCheckable(true);
+    m_actLocalFiles->setChecked(true); // Default
+
+    m_actHistory = new QAction(QStringLiteral("🕒 History"), this);
+    m_actHistory->setCheckable(true);
+
+    QActionGroup *perspectiveGroup = new QActionGroup(this);
+    perspectiveGroup->addAction(m_actLocalFiles);
+    perspectiveGroup->addAction(m_actHistory);
+    perspectiveGroup->setExclusive(true);
+
+    m_toolBar->addAction(m_actLocalFiles);
+    m_toolBar->addAction(m_actHistory);
     m_toolBar->addSeparator();
+
     m_toolBar->addAction(m_actPush);
     m_toolBar->addAction(m_actPull);
     m_toolBar->addAction(m_actRefresh);
-    m_toolBar->addSeparator();
-
-    // Branch combo removed (now using Branches Tree on the left)
+    
+    connect(m_actLocalFiles, &QAction::triggered, this, [this](){ switchPerspective(0); });
+    connect(m_actHistory, &QAction::triggered, this, [this](){ switchPerspective(1); });
 }
 
 // ─── Central Widget ────────────────────────────────────────────────
 
 void MainWindow::setupCentralWidget()
 {
-    // ── Branches Tree (Left Panel) ──────────────────────
-    m_branchesTree = new QTreeWidget;
-    m_branchesTree->setHeaderLabels({QStringLiteral("Branches")});
-    m_branchesTree->setRootIsDecorated(true);
-    m_branchesTree->setAlternatingRowColors(true);
+    // ==========================================
+    // 1. LOCAL FILES PERSPECTIVE (Index 0)
+    // ==========================================
+    m_dirModel = new QFileSystemModel(this);
+    m_dirTree = new QTreeView;
+    m_dirTree->setModel(m_dirModel);
+    m_dirTree->setColumnHidden(1, true); // size
+    m_dirTree->setColumnHidden(2, true); // type
+    m_dirTree->setColumnHidden(3, true); // date
+    m_dirTree->setHeaderHidden(true);
+    m_dirTree->setAlternatingRowColors(true);
 
-    // ── Commit Files Panel (Right Top - Right side) ─────
-    m_commitFilesTree = new QTreeWidget;
-    m_commitFilesTree->setHeaderLabels({QStringLiteral("Status"), QStringLiteral("File")});
-    m_commitFilesTree->setColumnWidth(0, 80);
-    m_commitFilesTree->setRootIsDecorated(true);
-    m_commitFilesTree->setAlternatingRowColors(true);
-    m_commitFilesTree->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    m_localChangesTree = new QTreeWidget;
+    m_localChangesTree->setHeaderLabels({QStringLiteral("Status"), QStringLiteral("File")});
+    m_localChangesTree->setColumnWidth(0, 80);
+    m_localChangesTree->setRootIsDecorated(true);
+    m_localChangesTree->setAlternatingRowColors(true);
+    m_localChangesTree->setSelectionMode(QAbstractItemView::ExtendedSelection);
 
-    // Roots for local changes (only visible when WORKING_TREE is selected)
-    m_stagedRoot = new QTreeWidgetItem(m_commitFilesTree, {QStringLiteral(""), QStringLiteral("Staged Changes")});
+    m_stagedRoot = new QTreeWidgetItem(m_localChangesTree, {QStringLiteral(""), QStringLiteral("Staged Changes")});
     m_stagedRoot->setExpanded(true);
     m_stagedRoot->setFlags(Qt::ItemIsEnabled);
-    m_stagedRoot->setHidden(true);
 
-    m_unstagedRoot = new QTreeWidgetItem(m_commitFilesTree, {QStringLiteral(""), QStringLiteral("Unstaged Changes")});
+    m_unstagedRoot = new QTreeWidgetItem(m_localChangesTree, {QStringLiteral(""), QStringLiteral("Unstaged Changes")});
     m_unstagedRoot->setExpanded(true);
     m_unstagedRoot->setFlags(Qt::ItemIsEnabled);
-    m_unstagedRoot->setHidden(true);
 
-    // ── Commit Panel (Buttons & Input) ──────────────────
+    // Commit Panel
     QPushButton *stageBtn   = new QPushButton(QStringLiteral("▲ Stage"));
     QPushButton *unstageBtn = new QPushButton(QStringLiteral("▼ Unstage"));
     QPushButton *stageAllBtn   = new QPushButton(QStringLiteral("▲▲ Stage All"));
@@ -175,8 +195,6 @@ void MainWindow::setupCentralWidget()
     QLabel *commitLabel = new QLabel(QStringLiteral("Commit Message:"));
     m_commitEdit = new QTextEdit;
     m_commitEdit->setPlaceholderText(QStringLiteral("Enter commit message..."));
-    m_commitEdit->setMaximumHeight(100);
-
     m_commitBtn = new QPushButton(QStringLiteral("✓ Commit"));
     m_commitBtn->setMinimumHeight(32);
 
@@ -185,25 +203,36 @@ void MainWindow::setupCentralWidget()
     commitPanelLayout->setSpacing(4);
     commitPanelLayout->addLayout(stageBtnLayout);
     commitPanelLayout->addWidget(commitLabel);
-    commitPanelLayout->addWidget(m_commitEdit);
+    commitPanelLayout->addWidget(m_commitEdit, 1);
     commitPanelLayout->addWidget(m_commitBtn);
 
     m_commitPanelWidget = new QWidget;
     m_commitPanelWidget->setLayout(commitPanelLayout);
-    m_commitPanelWidget->setVisible(false); // Hidden by default
 
-    QWidget *rightTopWidget = new QWidget;
-    QVBoxLayout *rightTopLayout = new QVBoxLayout;
-    rightTopLayout->setContentsMargins(0, 0, 0, 0);
-    rightTopLayout->setSpacing(0);
-    rightTopLayout->addWidget(m_commitFilesTree, 1);
-    rightTopLayout->addWidget(m_commitPanelWidget, 0);
-    rightTopWidget->setLayout(rightTopLayout);
+    QSplitter *localTopSplitter = new QSplitter(Qt::Horizontal);
+    localTopSplitter->addWidget(m_dirTree);
+    localTopSplitter->addWidget(m_localChangesTree);
+    localTopSplitter->addWidget(m_commitPanelWidget);
+    localTopSplitter->setStretchFactor(0, 2);
+    localTopSplitter->setStretchFactor(1, 4);
+    localTopSplitter->setStretchFactor(2, 3);
 
-    // ── Right panel: diff view ──────────────────────────
-    m_diffView = new DiffViewWidget;
+    m_localDiffView = new DiffViewWidget;
 
-    // ── Bottom panel: commit log ────────────────────────
+    QSplitter *localMainSplitter = new QSplitter(Qt::Vertical);
+    localMainSplitter->addWidget(localTopSplitter);
+    localMainSplitter->addWidget(m_localDiffView);
+    localMainSplitter->setStretchFactor(0, 6);
+    localMainSplitter->setStretchFactor(1, 4);
+
+    // ==========================================
+    // 2. HISTORY PERSPECTIVE (Index 1)
+    // ==========================================
+    m_branchesTree = new QTreeWidget;
+    m_branchesTree->setHeaderHidden(true);
+    m_branchesTree->setRootIsDecorated(true);
+    m_branchesTree->setAlternatingRowColors(true);
+
     m_logTable = new QTableView;
     m_logTable->setModel(m_logModel);
     m_logTable->setItemDelegate(m_logDelegate);
@@ -213,7 +242,6 @@ void MainWindow::setupCentralWidget()
     m_logTable->setAlternatingRowColors(true);
     m_logTable->verticalHeader()->setVisible(false);
     
-    // Stretch message column, fix graph and hash widths
     QHeaderView *hHeader = m_logTable->horizontalHeader();
     hHeader->setStretchLastSection(true);
     hHeader->setSectionResizeMode(CommitGraphModel::ColGraph, QHeaderView::Fixed);
@@ -224,28 +252,57 @@ void MainWindow::setupCentralWidget()
     m_logTable->setColumnWidth(CommitGraphModel::ColAuthor, 120);
     m_logTable->setColumnWidth(CommitGraphModel::ColDate, 140);
 
-    // ── Center Top Splitter (Graph | Commit Files) ──────
-    m_centerTopSplitter = new QSplitter(Qt::Horizontal);
-    m_centerTopSplitter->addWidget(m_logTable);
-    m_centerTopSplitter->addWidget(rightTopWidget);
-    m_centerTopSplitter->setStretchFactor(0, 5); // Graph is wider
-    m_centerTopSplitter->setStretchFactor(1, 2); // Files list is narrower
+    m_historyFilesTree = new QTreeWidget;
+    m_historyFilesTree->setHeaderLabels({QStringLiteral("Status"), QStringLiteral("File")});
+    m_historyFilesTree->setColumnWidth(0, 80);
+    m_historyFilesTree->setRootIsDecorated(false);
+    m_historyFilesTree->setAlternatingRowColors(true);
+    
+    m_commitDetailsLabel = new QLabel;
+    m_commitDetailsLabel->setWordWrap(true);
+    m_commitDetailsLabel->setTextFormat(Qt::RichText);
+    m_commitDetailsLabel->setMinimumHeight(60);
+    m_commitDetailsLabel->setStyleSheet(QStringLiteral("padding: 8px; background-color: #252526; border-bottom: 1px solid #3C3C3C;"));
+    m_commitDetailsLabel->setText(QStringLiteral("<span style='color:#808080;'>Select a commit to view details</span>"));
 
-    // ── Right Splitter (Top Center | Diff) ──────────────
-    m_rightSplitter = new QSplitter(Qt::Vertical);
-    m_rightSplitter->addWidget(m_centerTopSplitter);
-    m_rightSplitter->addWidget(m_diffView);
-    m_rightSplitter->setStretchFactor(0, 6); // Graph+Files gets more vertical space
-    m_rightSplitter->setStretchFactor(1, 3); // Diff gets less
+    QWidget *historyRightWidget = new QWidget;
+    QVBoxLayout *hrLayout = new QVBoxLayout(historyRightWidget);
+    hrLayout->setContentsMargins(0, 0, 0, 0);
+    hrLayout->setSpacing(0);
+    hrLayout->addWidget(m_commitDetailsLabel);
+    hrLayout->addWidget(m_historyFilesTree);
 
-    // ── Main Splitter (Branches | Right Splitter) ───────
-    m_mainSplitter = new QSplitter(Qt::Horizontal);
-    m_mainSplitter->addWidget(m_branchesTree);
-    m_mainSplitter->addWidget(m_rightSplitter);
-    m_mainSplitter->setStretchFactor(0, 1); // Branches panel
-    m_mainSplitter->setStretchFactor(1, 6); // Center/Right panels
+    QSplitter *historyTopSplitter = new QSplitter(Qt::Horizontal);
+    historyTopSplitter->addWidget(m_branchesTree);
+    historyTopSplitter->addWidget(m_logTable);
+    historyTopSplitter->addWidget(historyRightWidget);
+    historyTopSplitter->setStretchFactor(0, 2);
+    historyTopSplitter->setStretchFactor(1, 6);
+    historyTopSplitter->setStretchFactor(2, 3);
 
-    setCentralWidget(m_mainSplitter);
+    m_historyDiffView = new DiffViewWidget;
+
+    QSplitter *historyMainSplitter = new QSplitter(Qt::Vertical);
+    historyMainSplitter->addWidget(historyTopSplitter);
+    historyMainSplitter->addWidget(m_historyDiffView);
+    historyMainSplitter->setStretchFactor(0, 6);
+    historyMainSplitter->setStretchFactor(1, 4);
+
+    // ==========================================
+    // 3. STACKED WIDGET (Main Container)
+    // ==========================================
+    m_stackedWidget = new QStackedWidget;
+    m_stackedWidget->addWidget(localMainSplitter);   // Index 0: Local Files
+    m_stackedWidget->addWidget(historyMainSplitter); // Index 1: History
+    
+    setCentralWidget(m_stackedWidget);
+}
+
+void MainWindow::switchPerspective(int index)
+{
+    if (m_stackedWidget) {
+        m_stackedWidget->setCurrentIndex(index);
+    }
 }
 
 // ─── Status Bar ────────────────────────────────────────────────────
@@ -260,25 +317,49 @@ void MainWindow::setupStatusBar()
 
 void MainWindow::connectSignals()
 {
-    connect(m_commitFilesTree, &QTreeWidget::itemDoubleClicked,
+    connect(m_localChangesTree, &QTreeWidget::itemDoubleClicked,
             this, &MainWindow::onFileItemDoubleClicked);
 
-    connect(m_commitFilesTree, &QTreeWidget::itemClicked,
-            this, &MainWindow::onCommitFileClicked);
+    connect(m_localChangesTree, &QTreeWidget::itemClicked,
+            this, [this](QTreeWidgetItem *item, int){
+        if (!item || item == m_stagedRoot || item == m_unstagedRoot) {
+            m_localDiffView->clearDiff();
+            return;
+        }
+        QString path = item->data(0, Qt::UserRole).toString();
+        bool isStaged = item->data(0, Qt::UserRole + 1).toBool();
+        QString diff = isStaged ? m_git->getStagedDiff(path)
+                                : m_git->getWorkdirDiff(path);
+        if (diff.isEmpty()) m_localDiffView->setDiffText(QStringLiteral("(No diff available for %1)").arg(path));
+        else m_localDiffView->setDiffText(diff);
+    });
 
+    connect(m_historyFilesTree, &QTreeWidget::itemClicked,
+            this, &MainWindow::onCommitFileClicked);
+    
+    // Log
     connect(m_logTable->selectionModel(), &QItemSelectionModel::selectionChanged,
             this, &MainWindow::onCommitSelected);
+    
+    // Branches context menus
+    m_branchesTree->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(m_branchesTree, &QTreeWidget::customContextMenuRequested, this, &MainWindow::showBranchContextMenu);
+    connect(m_branchesTree, &QTreeWidget::itemDoubleClicked, this, &MainWindow::onBranchItemDoubleClicked);
+
+    // Commit context menus
+    m_logTable->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(m_logTable, &QTableView::customContextMenuRequested, this, &MainWindow::showCommitContextMenu);
 
     connect(m_commitBtn, &QPushButton::clicked,
             this, &MainWindow::doCommit);
-
-    connect(m_branchesTree, &QTreeWidget::itemDoubleClicked,
-            this, &MainWindow::onBranchItemDoubleClicked);
 
     connect(m_git, &GitManager::repositoryOpened,
             this, [this](const QString &path) {
                 setWindowTitle(QStringLiteral("QtGitClient — %1").arg(path));
                 setRepoActionsEnabled(true);
+                
+                m_dirModel->setRootPath(path);
+                m_dirTree->setRootIndex(m_dirModel->index(path));
 
                 // Watch for changes
                 m_watcher->addPath(path);
@@ -289,13 +370,19 @@ void MainWindow::connectSignals()
             this, [this]() {
                 setWindowTitle(QStringLiteral("QtGitClient"));
                 setRepoActionsEnabled(false);
+                
+                m_dirModel->setRootPath(QString());
                 m_stagedRoot->takeChildren();
                 m_unstagedRoot->takeChildren();
-                m_commitFilesTree->clear();
-                m_diffView->clearDiff();
+                m_localDiffView->clearDiff();
+
+                m_historyFilesTree->clear();
+                m_historyDiffView->clearDiff();
+
                 m_logModel->setCommits(QVector<CommitInfo>());
                 m_selectedCommitId.clear();
                 m_branchesTree->clear();
+                
                 m_statusLabel->setText(QStringLiteral("No repository open"));
                 if (!m_watcher->directories().isEmpty())
                     m_watcher->removePaths(m_watcher->directories());
@@ -343,15 +430,20 @@ void MainWindow::applyDarkTheme()
             background-color: transparent;
             color: #D4D4D4;
             border: 1px solid transparent;
-            border-radius: 3px;
-            padding: 4px 8px;
+            border-radius: 4px;
+            padding: 6px 12px;
+            font-size: 13px;
         }
         QToolButton:hover {
             background-color: #3C3C3C;
             border: 1px solid #505050;
         }
-        QToolButton:pressed {
+        QToolButton:checked {
             background-color: #094771;
+            border: 1px solid #007ACC;
+        }
+        QToolButton:pressed {
+            background-color: #0E639C;
         }
         QPushButton {
             background-color: #0E639C;
@@ -628,43 +720,43 @@ void MainWindow::onCommitSelected(const QItemSelection &selected, const QItemSel
 {
     Q_UNUSED(deselected);
     
-    // Clear previously added commit file items, but KEEP the staged/unstaged roots
-    for (int i = m_commitFilesTree->topLevelItemCount() - 1; i >= 0; --i) {
-        QTreeWidgetItem *item = m_commitFilesTree->topLevelItem(i);
-        if (item != m_stagedRoot && item != m_unstagedRoot) {
-            delete item;
-        }
-    }
-    m_diffView->clearDiff();
+    m_historyFilesTree->clear();
+    m_historyDiffView->clearDiff();
     
     if (selected.indexes().isEmpty()) {
         m_selectedCommitId.clear();
-        m_commitPanelWidget->hide();
-        m_stagedRoot->setHidden(true);
-        m_unstagedRoot->setHidden(true);
         return;
     }
 
     int row = selected.indexes().first().row();
     QModelIndex hashIndex = m_logModel->index(row, CommitGraphModel::ColHash);
-    m_selectedCommitId = m_logModel->data(hashIndex).toString();
+    m_selectedCommitId = m_logModel->data(hashIndex, Qt::UserRole).toString();
+
+    QModelIndex msgIndex = m_logModel->index(row, CommitGraphModel::ColMessage);
+    QString msg = m_logModel->data(msgIndex, Qt::UserRole).toString();
     
-    if (m_selectedCommitId == "WORKING_TREE") {
-        m_commitPanelWidget->show();
-        m_stagedRoot->setHidden(false);
-        m_unstagedRoot->setHidden(false);
-        return;
-    }
+    QModelIndex authorIndex = m_logModel->index(row, CommitGraphModel::ColAuthor);
+    QString author = m_logModel->data(authorIndex, Qt::UserRole).toString();
     
-    m_commitPanelWidget->hide();
-    m_stagedRoot->setHidden(true);
-    m_unstagedRoot->setHidden(true);
+    QModelIndex dateIndex = m_logModel->index(row, CommitGraphModel::ColDate);
+    QDateTime date = m_logModel->data(dateIndex, Qt::UserRole).toDateTime();
+
+    QString detailsHtml = QStringLiteral(
+        "<div style='font-family: sans-serif;'>"
+        "<div style='font-size: 14px; font-weight: bold; color: #E0E0E0; margin-bottom: 4px;'>%1</div>"
+        "<div style='font-size: 12px; color: #808080; margin-bottom: 8px;'>"
+        "<b>%2</b> committed on %3 &nbsp;&nbsp;&nbsp; <code>%4</code>"
+        "</div>"
+        "</div>"
+    ).arg(msg.toHtmlEscaped(), author.toHtmlEscaped(), date.toString("yyyy-MM-dd hh:mm:ss"), m_selectedCommitId);
+    
+    m_commitDetailsLabel->setText(detailsHtml);
     
     // Fetch changed files for this commit
     QVector<FileStatusEntry> entries = m_git->getCommitChangedFiles(m_selectedCommitId);
     
     for (const auto &entry : entries) {
-        auto *item = new QTreeWidgetItem(m_commitFilesTree);
+        auto *item = new QTreeWidgetItem(m_historyFilesTree);
         QString statusText = FileStatusEntry::statusChar(entry.worktreeStatus);
         item->setText(0, statusText);
         item->setText(1, entry.path);
@@ -695,23 +787,11 @@ void MainWindow::onCommitFileClicked(QTreeWidgetItem *item, int /*column*/)
     QString path = item->data(0, Qt::UserRole).toString();
     if (path.isEmpty()) return; // Ignored root items
     
-    if (m_selectedCommitId == "WORKING_TREE") {
-        bool isStaged = item->data(0, Qt::UserRole + 1).toBool();
-        QString diff = isStaged ? m_git->getStagedDiff(path)
-                                : m_git->getWorkdirDiff(path);
-        if (diff.isEmpty()) {
-            m_diffView->setDiffText(QStringLiteral("(No diff available for %1)").arg(path));
-        } else {
-            m_diffView->setDiffText(diff);
-        }
-        return;
-    }
-
     QString diff = m_git->getCommitDiff(m_selectedCommitId, path);
     if (diff.isEmpty()) {
-        m_diffView->setDiffText(QStringLiteral("(No diff available for %1 in commit %2)").arg(path, m_selectedCommitId));
+        m_historyDiffView->setDiffText(QStringLiteral("(No diff available for %1 in commit %2)").arg(path, m_selectedCommitId));
     } else {
-        m_diffView->setDiffText(diff);
+        m_historyDiffView->setDiffText(diff);
     }
 }
 
@@ -737,7 +817,7 @@ void MainWindow::onFileItemDoubleClicked(QTreeWidgetItem *item, int /*column*/)
 
 void MainWindow::stageSelected()
 {
-    auto items = m_commitFilesTree->selectedItems();
+    auto items = m_localChangesTree->selectedItems();
     for (auto *item : items) {
         if (item == m_stagedRoot || item == m_unstagedRoot) continue;
         bool isStaged = item->data(0, Qt::UserRole + 1).toBool();
@@ -750,7 +830,7 @@ void MainWindow::stageSelected()
 
 void MainWindow::unstageSelected()
 {
-    auto items = m_commitFilesTree->selectedItems();
+    auto items = m_localChangesTree->selectedItems();
     for (auto *item : items) {
         if (item == m_stagedRoot || item == m_unstagedRoot) continue;
         bool isStaged = item->data(0, Qt::UserRole + 1).toBool();
@@ -953,4 +1033,58 @@ void MainWindow::onRepoChanged(const QString & /*path*/)
 void MainWindow::onGitError(const QString &message)
 {
     statusBar()->showMessage(QStringLiteral("Error: %1").arg(message), 5000);
+}
+
+
+void MainWindow::showBranchContextMenu(const QPoint &pos)
+{
+    QTreeWidgetItem *item = m_branchesTree->itemAt(pos);
+    if (!item || item->parent() == nullptr) return;
+
+    QString branchName = item->data(0, Qt::UserRole).toString();
+    if (branchName.isEmpty()) return;
+
+    QMenu menu(this);
+    QAction *actCheckout = menu.addAction(QStringLiteral("Checkout %1").arg(branchName));
+    QAction *actDelete   = menu.addAction(QStringLiteral("Delete %1").arg(branchName));
+
+    QAction *res = menu.exec(m_branchesTree->viewport()->mapToGlobal(pos));
+    if (res == actCheckout) {
+        if (m_git->checkoutBranch(branchName)) refreshAll();
+        else QMessageBox::critical(this, "Error", m_git->lastError());
+    } else if (res == actDelete) {
+        if (QMessageBox::question(this, "Delete Branch", QStringLiteral("Are you sure you want to delete branch '%1'?").arg(branchName)) == QMessageBox::Yes) {
+            if (m_git->deleteBranch(branchName)) refreshAll();
+            else QMessageBox::critical(this, "Error", m_git->lastError());
+        }
+    }
+}
+
+void MainWindow::showCommitContextMenu(const QPoint &pos)
+{
+    QModelIndex index = m_logTable->indexAt(pos);
+    if (!index.isValid()) return;
+
+    int row = index.row();
+    QModelIndex hashIndex = m_logModel->index(row, CommitGraphModel::ColHash);
+    QString commitId = m_logModel->data(hashIndex, Qt::UserRole).toString();
+    
+    QModelIndex msgIndex = m_logModel->index(row, CommitGraphModel::ColMessage);
+    QString commitMsg = m_logModel->data(msgIndex, Qt::DisplayRole).toString();
+
+    QMenu menu(this);
+    QAction *actBranch = menu.addAction(QStringLiteral("Create Branch Here..."));
+    
+    QAction *res = menu.exec(m_logTable->viewport()->mapToGlobal(pos));
+    if (res == actBranch) {
+        bool ok;
+        QString name = QInputDialog::getText(this, "Create Branch", 
+            QStringLiteral("Enter new branch name at commit:\n%1").arg(commitMsg), 
+            QLineEdit::Normal, "", &ok);
+            
+        if (ok && !name.isEmpty()) {
+            if (m_git->createBranchAt(name, commitId)) refreshAll();
+            else QMessageBox::critical(this, "Error", m_git->lastError());
+        }
+    }
 }

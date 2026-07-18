@@ -2,60 +2,39 @@
 #define DIFFVIEWWIDGET_H
 
 #include <QPlainTextEdit>
+#include <QWidget>
 #include <QSyntaxHighlighter>
 #include <QTextCharFormat>
 #include <QRegularExpression>
 
 // ─── DiffHighlighter ───────────────────────────────────────────────
 
-class DiffHighlighter : public QSyntaxHighlighter
-{
-    Q_OBJECT
+// Removed DiffHighlighter as we use block formatting directly now
 
-public:
-    explicit DiffHighlighter(QTextDocument *parent = nullptr);
+// ─── DiffEditor ────────────────────────────────────────────────────
 
-protected:
-    void highlightBlock(const QString &text) override;
-
-private:
-    QTextCharFormat m_addedFormat;
-    QTextCharFormat m_removedFormat;
-    QTextCharFormat m_hunkFormat;
-    QTextCharFormat m_headerFormat;
-    QTextCharFormat m_metaFormat;
-};
-
-// ─── LineNumberArea (helper) ───────────────────────────────────────
-
-class DiffViewWidget;
+class DiffEditor;
 
 class LineNumberArea : public QWidget
 {
 public:
-    explicit LineNumberArea(DiffViewWidget *editor);
+    explicit LineNumberArea(DiffEditor *editor);
     QSize sizeHint() const override;
 
 protected:
     void paintEvent(QPaintEvent *event) override;
 
 private:
-    DiffViewWidget *m_editor;
+    DiffEditor *m_editor;
 };
 
-// ─── DiffViewWidget ────────────────────────────────────────────────
-
-class DiffViewWidget : public QPlainTextEdit
+class DiffEditor : public QPlainTextEdit
 {
     Q_OBJECT
 
 public:
-    explicit DiffViewWidget(QWidget *parent = nullptr);
+    explicit DiffEditor(QWidget *parent = nullptr);
 
-    void setDiffText(const QString &diff);
-    void clearDiff();
-
-    // Line number area support
     int  lineNumberAreaWidth() const;
     void lineNumberAreaPaintEvent(QPaintEvent *event);
 
@@ -69,8 +48,27 @@ private slots:
 private:
     void setupEditor();
 
-    DiffHighlighter *m_highlighter;
     LineNumberArea  *m_lineNumberArea;
+};
+
+// ─── DiffViewWidget (Side-by-Side Container) ───────────────────────
+
+class QSplitter;
+
+class DiffViewWidget : public QWidget
+{
+    Q_OBJECT
+
+public:
+    explicit DiffViewWidget(QWidget *parent = nullptr);
+
+    void setDiffText(const QString &diff);
+    void clearDiff();
+
+private:
+    DiffEditor *m_leftEditor;
+    DiffEditor *m_rightEditor;
+    QSplitter  *m_splitter;
 };
 
 #endif // DIFFVIEWWIDGET_H

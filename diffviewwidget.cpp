@@ -5,68 +5,10 @@
 #include <QFontDatabase>
 
 // ═══════════════════════════════════════════════════════════════════
-//  DiffHighlighter
-// ═══════════════════════════════════════════════════════════════════
-
-DiffHighlighter::DiffHighlighter(QTextDocument *parent)
-    : QSyntaxHighlighter(parent)
-{
-    // Added lines — green
-    m_addedFormat.setForeground(QColor("#4EC9B0"));
-    m_addedFormat.setBackground(QColor(78, 201, 176, 30));
-
-    // Removed lines — red
-    m_removedFormat.setForeground(QColor("#F14C4C"));
-    m_removedFormat.setBackground(QColor(241, 76, 76, 30));
-
-    // Hunk headers (@@ ... @@) — cyan/blue
-    m_hunkFormat.setForeground(QColor("#569CD6"));
-    m_hunkFormat.setFontWeight(QFont::Bold);
-
-    // File headers (diff --git, ---/+++ lines) — yellow/gold
-    m_headerFormat.setForeground(QColor("#DCDCAA"));
-    m_headerFormat.setFontWeight(QFont::Bold);
-
-    // Meta lines (index, similarity, etc.) — gray
-    m_metaFormat.setForeground(QColor("#808080"));
-}
-
-void DiffHighlighter::highlightBlock(const QString &text)
-{
-    if (text.isEmpty()) return;
-
-    QChar first = text.at(0);
-
-    if (text.startsWith(QStringLiteral("diff --git")) ||
-        text.startsWith(QStringLiteral("--- "))       ||
-        text.startsWith(QStringLiteral("+++ ")))
-    {
-        setFormat(0, text.length(), m_headerFormat);
-    }
-    else if (text.startsWith(QStringLiteral("@@"))) {
-        setFormat(0, text.length(), m_hunkFormat);
-    }
-    else if (first == '+') {
-        setFormat(0, text.length(), m_addedFormat);
-    }
-    else if (first == '-') {
-        setFormat(0, text.length(), m_removedFormat);
-    }
-    else if (text.startsWith(QStringLiteral("index "))     ||
-             text.startsWith(QStringLiteral("similarity")) ||
-             text.startsWith(QStringLiteral("rename"))     ||
-             text.startsWith(QStringLiteral("new file"))   ||
-             text.startsWith(QStringLiteral("deleted file")))
-    {
-        setFormat(0, text.length(), m_metaFormat);
-    }
-}
-
-// ═══════════════════════════════════════════════════════════════════
 //  LineNumberArea
 // ═══════════════════════════════════════════════════════════════════
 
-LineNumberArea::LineNumberArea(DiffViewWidget *editor)
+LineNumberArea::LineNumberArea(DiffEditor *editor)
     : QWidget(editor), m_editor(editor)
 {}
 
@@ -81,18 +23,17 @@ void LineNumberArea::paintEvent(QPaintEvent *event)
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  DiffViewWidget
+//  DiffEditor
 // ═══════════════════════════════════════════════════════════════════
 
-DiffViewWidget::DiffViewWidget(QWidget *parent)
+DiffEditor::DiffEditor(QWidget *parent)
     : QPlainTextEdit(parent)
-    , m_highlighter(nullptr)
     , m_lineNumberArea(new LineNumberArea(this))
 {
     setupEditor();
 }
 
-void DiffViewWidget::setupEditor()
+void DiffEditor::setupEditor()
 {
     // Monospace font
     QFont font = QFontDatabase::systemFont(QFontDatabase::FixedFont);
@@ -113,32 +54,18 @@ void DiffViewWidget::setupEditor()
         "}"
     ));
 
-    // Highlighter
-    m_highlighter = new DiffHighlighter(document());
-
     // Line number area connections
     connect(this, &QPlainTextEdit::blockCountChanged,
-            this, &DiffViewWidget::updateLineNumberAreaWidth);
+            this, &DiffEditor::updateLineNumberAreaWidth);
     connect(this, &QPlainTextEdit::updateRequest,
-            this, &DiffViewWidget::updateLineNumberArea);
+            this, &DiffEditor::updateLineNumberArea);
 
     updateLineNumberAreaWidth(0);
 }
 
-void DiffViewWidget::setDiffText(const QString &diff)
-{
-    setPlainText(diff);
-    moveCursor(QTextCursor::Start);
-}
-
-void DiffViewWidget::clearDiff()
-{
-    clear();
-}
-
 // ─── Line number area ──────────────────────────────────────────────
 
-int DiffViewWidget::lineNumberAreaWidth() const
+int DiffEditor::lineNumberAreaWidth() const
 {
     int digits = 1;
     int max = qMax(1, blockCount());
@@ -150,12 +77,12 @@ int DiffViewWidget::lineNumberAreaWidth() const
     return space;
 }
 
-void DiffViewWidget::updateLineNumberAreaWidth(int /*newBlockCount*/)
+void DiffEditor::updateLineNumberAreaWidth(int /*newBlockCount*/)
 {
     setViewportMargins(lineNumberAreaWidth(), 0, 0, 0);
 }
 
-void DiffViewWidget::updateLineNumberArea(const QRect &rect, int dy)
+void DiffEditor::updateLineNumberArea(const QRect &rect, int dy)
 {
     if (dy)
         m_lineNumberArea->scroll(0, dy);
@@ -167,7 +94,7 @@ void DiffViewWidget::updateLineNumberArea(const QRect &rect, int dy)
         updateLineNumberAreaWidth(0);
 }
 
-void DiffViewWidget::resizeEvent(QResizeEvent *event)
+void DiffEditor::resizeEvent(QResizeEvent *event)
 {
     QPlainTextEdit::resizeEvent(event);
     QRect cr = contentsRect();
@@ -175,7 +102,7 @@ void DiffViewWidget::resizeEvent(QResizeEvent *event)
         QRect(cr.left(), cr.top(), lineNumberAreaWidth(), cr.height()));
 }
 
-void DiffViewWidget::lineNumberAreaPaintEvent(QPaintEvent *event)
+void DiffEditor::lineNumberAreaPaintEvent(QPaintEvent *event)
 {
     QPainter painter(m_lineNumberArea);
     painter.fillRect(event->rect(), QColor("#252526"));
@@ -204,4 +131,176 @@ void DiffViewWidget::lineNumberAreaPaintEvent(QPaintEvent *event)
         bottom = top + qRound(blockBoundingRect(block).height());
         ++blockNumber;
     }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  DiffViewWidget (Side-by-Side Container)
+// ═══════════════════════════════════════════════════════════════════
+
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QSplitter>
+#include <QLabel>
+
+DiffViewWidget::DiffViewWidget(QWidget *parent)
+    : QWidget(parent)
+{
+    m_splitter = new QSplitter(Qt::Horizontal, this);
+    
+    // Left Pane
+    QWidget *leftWidget = new QWidget(this);
+    QVBoxLayout *leftLayout = new QVBoxLayout(leftWidget);
+    leftLayout->setContentsMargins(0, 0, 0, 0);
+    leftLayout->setSpacing(0);
+    
+    QLabel *leftLabel = new QLabel(QStringLiteral("Old"), this);
+    leftLabel->setStyleSheet(QStringLiteral("background-color: #2D2D2D; color: #D4D4D4; padding: 4px; font-weight: bold; border-bottom: 1px solid #3C3C3C;"));
+    m_leftEditor = new DiffEditor(this);
+    
+    leftLayout->addWidget(leftLabel);
+    leftLayout->addWidget(m_leftEditor);
+    
+    // Right Pane
+    QWidget *rightWidget = new QWidget(this);
+    QVBoxLayout *rightLayout = new QVBoxLayout(rightWidget);
+    rightLayout->setContentsMargins(0, 0, 0, 0);
+    rightLayout->setSpacing(0);
+    
+    QLabel *rightLabel = new QLabel(QStringLiteral("New"), this);
+    rightLabel->setStyleSheet(QStringLiteral("background-color: #2D2D2D; color: #D4D4D4; padding: 4px; font-weight: bold; border-bottom: 1px solid #3C3C3C;"));
+    m_rightEditor = new DiffEditor(this);
+    
+    rightLayout->addWidget(rightLabel);
+    rightLayout->addWidget(m_rightEditor);
+    
+    m_splitter->addWidget(leftWidget);
+    m_splitter->addWidget(rightWidget);
+    
+    QVBoxLayout *mainLayout = new QVBoxLayout(this);
+    mainLayout->setContentsMargins(0, 0, 0, 0);
+    mainLayout->addWidget(m_splitter);
+    
+    // Synchronize scroll bars
+    connect(m_leftEditor->verticalScrollBar(), &QScrollBar::valueChanged,
+            m_rightEditor->verticalScrollBar(), &QScrollBar::setValue);
+    connect(m_rightEditor->verticalScrollBar(), &QScrollBar::valueChanged,
+            m_leftEditor->verticalScrollBar(), &QScrollBar::setValue);
+}
+
+void DiffViewWidget::setDiffText(const QString &diff)
+{
+    m_leftEditor->clear();
+    m_rightEditor->clear();
+
+    QTextCursor leftCursor(m_leftEditor->document());
+    QTextCursor rightCursor(m_rightEditor->document());
+
+    QTextBlockFormat normalFormat;
+    QTextBlockFormat addFormat;
+    addFormat.setBackground(QColor(78, 201, 176, 30)); // Greenish
+
+    QTextBlockFormat delFormat;
+    delFormat.setBackground(QColor(241, 76, 76, 30)); // Reddish
+
+    QTextBlockFormat emptyFormat;
+    emptyFormat.setBackground(QColor("#252526")); // Slightly different dark empty
+
+    QTextCharFormat hunkFormat;
+    hunkFormat.setForeground(QColor("#569CD6"));
+    hunkFormat.setFontWeight(QFont::Bold);
+
+    QTextCharFormat normalCharFormat;
+    normalCharFormat.setForeground(QColor("#D4D4D4"));
+
+    bool firstLine = true;
+    auto addRow = [&](const QString &lText, const QTextBlockFormat &lBf, const QTextCharFormat &lCf,
+                      const QString &rText, const QTextBlockFormat &rBf, const QTextCharFormat &rCf) {
+        if (!firstLine) {
+            leftCursor.insertBlock(lBf, lCf);
+            rightCursor.insertBlock(rBf, rCf);
+        } else {
+            leftCursor.setBlockFormat(lBf);
+            leftCursor.setCharFormat(lCf);
+            rightCursor.setBlockFormat(rBf);
+            rightCursor.setCharFormat(rCf);
+            firstLine = false;
+        }
+        leftCursor.insertText(lText.isEmpty() ? " " : lText);
+        rightCursor.insertText(rText.isEmpty() ? " " : rText);
+    };
+
+    QStringList lines = diff.split('\n');
+    int i = 0;
+    while (i < lines.size()) {
+        QString line = lines[i];
+
+        if (line.startsWith("diff ") || line.startsWith("index ") || 
+            line.startsWith("---") || line.startsWith("+++")) 
+        {
+            i++;
+            continue;
+        }
+
+        if (line.startsWith("@@")) {
+            addRow(line, normalFormat, hunkFormat, line, normalFormat, hunkFormat);
+            i++;
+            continue;
+        }
+
+        if (line.startsWith("-") && !line.startsWith("---")) {
+            QStringList delLines, addLines;
+            while (i < lines.size()) {
+                QString cLine = lines[i];
+                if (cLine.startsWith("-") && !cLine.startsWith("---")) {
+                    delLines.append(cLine.mid(1));
+                    i++;
+                } else if (cLine.startsWith("+") && !cLine.startsWith("+++")) {
+                    addLines.append(cLine.mid(1));
+                    i++;
+                } else if (cLine.startsWith("\\")) {
+                    i++;
+                } else {
+                    break;
+                }
+            }
+            int maxCount = qMax(delLines.size(), addLines.size());
+            for (int k = 0; k < maxCount; ++k) {
+                QString lText = (k < delLines.size()) ? ("-" + delLines[k]) : "";
+                QTextBlockFormat lBf = (k < delLines.size()) ? delFormat : emptyFormat;
+                
+                QString rText = (k < addLines.size()) ? ("+" + addLines[k]) : "";
+                QTextBlockFormat rBf = (k < addLines.size()) ? addFormat : emptyFormat;
+                
+                addRow(lText, lBf, normalCharFormat, rText, rBf, normalCharFormat);
+            }
+        } 
+        else if (line.startsWith("+") && !line.startsWith("+++")) {
+            QStringList addLines;
+            while (i < lines.size() && lines[i].startsWith("+") && !lines[i].startsWith("+++")) {
+                addLines.append(lines[i].mid(1));
+                i++;
+            }
+            for (int k = 0; k < addLines.size(); ++k) {
+                addRow("", emptyFormat, normalCharFormat, "+" + addLines[k], addFormat, normalCharFormat);
+            }
+        } 
+        else if (line.startsWith("\\")) {
+            i++;
+        }
+        else {
+            QString text = line;
+            if (text.startsWith(" ")) text = text; // Keep the space if they want prefixes, but wait, if we stripped +/-, context lines had space. Let's just use line directly.
+            addRow(line, normalFormat, normalCharFormat, line, normalFormat, normalCharFormat);
+            i++;
+        }
+    }
+
+    m_leftEditor->moveCursor(QTextCursor::Start);
+    m_rightEditor->moveCursor(QTextCursor::Start);
+}
+
+void DiffViewWidget::clearDiff()
+{
+    m_leftEditor->clear();
+    m_rightEditor->clear();
 }

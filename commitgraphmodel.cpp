@@ -151,10 +151,21 @@ QVariant CommitGraphModel::data(const QModelIndex &index, int role) const
         switch (index.column()) {
             case ColGraph:   return QVariant(); // Drawn by delegate
             case ColHash:    return gc.commit.shortId;
-            case ColMessage: return gc.commit.summary;
+            case ColMessage: {
+                if (!gc.commit.refs.isEmpty()) {
+                    return QStringLiteral("[%1] %2").arg(gc.commit.refs.join(", "), gc.commit.summary);
+                }
+                return gc.commit.summary;
+            }
             case ColAuthor:  return gc.commit.authorName;
             case ColDate:    return gc.commit.date.toString("yyyy-MM-dd hh:mm");
         }
+    }
+    else if (role == Qt::UserRole) {
+        if (index.column() == ColHash) return gc.commit.id;
+        if (index.column() == ColMessage) return gc.commit.message;
+        if (index.column() == ColAuthor) return gc.commit.authorName + " <" + gc.commit.authorEmail + ">";
+        if (index.column() == ColDate) return gc.commit.date;
     }
     else if (role == GraphNodeRole && index.column() == ColGraph) {
         return QVariant::fromValue(gc.graph);

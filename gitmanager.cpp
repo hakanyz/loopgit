@@ -273,6 +273,14 @@ QVector<CommitInfo> GitManager::getLog(int maxCount)
     int count = 0;
     result.reserve(maxCount);
 
+    QVector<BranchInfo> branches = getBranches();
+    QHash<QString, QStringList> commitToRefs;
+    for (const auto &b : branches) {
+        if (!b.targetHash.isEmpty()) {
+            commitToRefs[b.targetHash].append(b.name);
+        }
+    }
+
     while (git_revwalk_next(&oid, walker) == 0 && count < maxCount) {
         git_commit *commit = nullptr;
         if (git_commit_lookup(&commit, m_repo, &oid) != 0)
@@ -303,6 +311,8 @@ QVector<CommitInfo> GitManager::getLog(int maxCount)
             ci.parentIds.append(QString::fromUtf8(pHashBuf));
         }
 
+        ci.refs = commitToRefs.value(ci.id);
+
         result.append(ci);
         git_commit_free(commit);
         ++count;
@@ -310,38 +320,7 @@ QVector<CommitInfo> GitManager::getLog(int maxCount)
 
     git_revwalk_free(walker);
 
-    // ── Inject "Working Tree" dummy commit at the top
-    git_reference *head = nullptr;
-    QString headHash;
-    if (git_repository_head(&head, m_repo) == 0) {
-        const git_oid *oid = git_reference_target(head);
-        char buf[41];
-        git_oid_tostr(buf, sizeof(buf), oid);
-        headHash = QString::fromUtf8(buf);
-        git_reference_free(head);
-    }
-
-    CommitInfo wt;
-    wt.id = QStringLiteral("WORKING_TREE");
-    wt.shortId = QStringLiteral("WIP");
-    
-    // Check if there are actual changes
-    int changesCount = getFileStatus().size();
-    if (changesCount > 0) {
-        wt.message = QStringLiteral("Working Tree / Index (%1 changed)").arg(changesCount);
-    } else {
-        wt.message = QStringLiteral("Working Tree / Index (clean)");
-    }
-    
-    wt.summary = wt.message;
-    wt.authorName = QStringLiteral("*");
-    wt.date = QDateTime::currentDateTime();
-    if (!headHash.isEmpty()) {
-        wt.parentIds.append(headHash);
-    }
-    
-    result.prepend(wt);
-
+    // Returning only actual git commits now
     return result;
 }
 
@@ -992,10 +971,21 @@ QVector<BranchInfo> GitManager::getBranches()
             const char *name = nullptr;
             git_branch_name(&name, ref);
 
+            char hashBuf[41] = {0};
+            git_reference *resolvedRef = nullptr;
+            if (git_reference_resolve(&resolvedRef, ref) == 0) {
+                const git_oid *oid = git_reference_target(resolvedRef);
+                if (oid) {
+                    git_oid_tostr(hashBuf, sizeof(hashBuf), oid);
+                }
+                git_reference_free(resolvedRef);
+            }
+
             BranchInfo bi;
-            bi.name     = QString::fromUtf8(name);
-            bi.isRemote = (type == GIT_BRANCH_REMOTE);
-            bi.isHead   = (!bi.isRemote && bi.name == currentBranch);
+            bi.name       = QString::fromUtf8(name);
+            bi.isRemote   = (type == GIT_BRANCH_REMOTE);
+            bi.isHead     = (!bi.isRemote && bi.name == currentBranch);
+            bi.targetHash = QString::fromUtf8(hashBuf);
 
             result.append(bi);
             git_reference_free(ref);
@@ -1039,6 +1029,37 @@ bool GitManager::createBranch(const QString &name)
 
     if (err < 0) {
         setError(QStringLiteral("Failed to create branch '%1'").arg(name));
+        return false;
+    }
+
+    git_reference_free(branch);
+    return true;
+}
+
+bool GitManager::createBranchAt(const QString &name, const QString &commitId)
+{
+    if (!ensureOpen()) return false;
+
+    git_oid oid;
+    if (git_oid_fromstr(&oid, commitId.toUtf8().constData()) < 0) {
+        setError(QStringLiteral("Invalid commit hash: %1").arg(commitId));
+        return false;
+    }
+
+    git_commit *targetCommit = nullptr;
+    if (git_commit_lookup(&targetCommit, m_repo, &oid) < 0) {
+        setError(QStringLiteral("Failed to lookup commit %1").arg(commitId));
+        return false;
+    }
+
+    git_reference *branch = nullptr;
+    int err = git_branch_create(&branch, m_repo, name.toUtf8().constData(),
+                                targetCommit, 0 /* don't force */);
+
+    git_commit_free(targetCommit);
+
+    if (err < 0) {
+        setError(QStringLiteral("Failed to create branch '%1' at %2").arg(name, commitId));
         return false;
     }
 
