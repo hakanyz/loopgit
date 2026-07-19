@@ -12,9 +12,13 @@ LoopGit was built to solve this problem. It is a fully native application. It us
 
 - **Blazing Fast**: Built with C++ and libgit2 for native performance.
 - **Modern UI**: A sleek, dark-themed interface built with Qt6.
-- **Core Git Operations**: Stage/unstage, commit, push, pull, fetch, branch management, stash, pop, cherry-pick, revert.
-- **Diff Viewer**: Integrated diff viewer to see your changes at a glance.
-- **Commit Graph**: Visualize your repository's history with an interactive commit graph.
+- **Visual Commit Graph**: Interactive lane-based git commit graph representation.
+- **Interactive Conflict Resolver**: Side-by-side visual merge conflict resolution tool.
+- **Advanced Diff & Compare**: Compare any two commits by holding `Ctrl` and selecting them in the log.
+- **Ahead/Behind Indicators**: View branch sync status (`[↑X ↓Y]`) directly in the side panel.
+- **Settings & Remotes UI**: Manage your git configuration and remote URLs without touching the CLI.
+- **Reflog & Blame Viewer**: Look up local repository reflog pointer history or blame line annotations.
+- **Core Operations & Shortcuts**: Easy push, pull, fetch, commit (amend), stash, cherry-pick, revert with global shortcuts.
 
 ## Build Instructions
 
