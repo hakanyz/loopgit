@@ -74,6 +74,8 @@ set(PROJECT_SOURCES
     commitgraphmodel.cpp
     commitgraphdelegate.h
     commitgraphdelegate.cpp
+    blamedialog.h
+    blamedialog.cpp
     resources.qrc
     app.rc
 )

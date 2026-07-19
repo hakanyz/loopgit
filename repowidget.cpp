@@ -33,11 +33,12 @@
 #include <QInputDialog>
 #include <QFileSystemWatcher>
 #include <QHeaderView>
+#include "blamedialog.h"
 #include <QDir>
 #include <QTimer>
 #include <QCheckBox>
 
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• 
 //  Construction / Destruction
 // âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
@@ -1051,6 +1052,8 @@ void RepoWidget::showLocalFilesContextMenu(const QPoint &pos)
     QAction *actDiscard = menu.addAction(QStringLiteral("Discard Changes"));
     menu.addSeparator();
     QAction *actOpenDir = menu.addAction(QStringLiteral("Open in Explorer"));
+    
+    QAction *actBlame = menu.addAction(QStringLiteral("Show Blame"));
 
     QAction *res = menu.exec(m_localChangesTree->viewport()->mapToGlobal(pos));
     
@@ -1082,6 +1085,14 @@ void RepoWidget::showLocalFilesContextMenu(const QPoint &pos)
     } else if (res == actOpenDir) {
         QString absPath = QDir(m_git->repoPath()).absoluteFilePath(path);
         QDesktopServices::openUrl(QUrl::fromLocalFile(QFileInfo(absPath).absolutePath()));
+    } else if (res == actBlame) {
+        QVector<BlameLine> blameData = m_git->getBlame(path);
+        if (!blameData.isEmpty()) {
+            BlameDialog dlg(path, blameData, this);
+            dlg.exec();
+        } else {
+            QMessageBox::information(this, "Blame", "No blame data available for this file.");
+        }
     }
 }
 
@@ -1157,8 +1168,15 @@ void RepoWidget::showDirTreeContextMenu(const QPoint &pos)
 
     menu.addSeparator();
     QAction *actOpenDir = menu.addAction(QStringLiteral("Open in Explorer"));
+    
+    QAction *actBlame = nullptr;
+    if (!isDir) {
+        menu.addSeparator();
+        actBlame = menu.addAction(QStringLiteral("Show Blame"));
+    }
 
     QAction *res = menu.exec(m_dirTree->viewport()->mapToGlobal(pos));
+    if (!res) return;
     
     QString ignoreStr;
     if (res == actIgnoreExact) ignoreStr = relPath;
@@ -1173,6 +1191,14 @@ void RepoWidget::showDirTreeContextMenu(const QPoint &pos)
             QDesktopServices::openUrl(QUrl::fromLocalFile(absPath));
         } else {
             QDesktopServices::openUrl(QUrl::fromLocalFile(fi.absolutePath()));
+        }
+    } else if (res == actBlame) {
+        QVector<BlameLine> blameData = m_git->getBlame(relPath);
+        if (!blameData.isEmpty()) {
+            BlameDialog dlg(relPath, blameData, this);
+            dlg.exec();
+        } else {
+            QMessageBox::information(this, "Blame", "No blame data available for this file.");
         }
     }
 }
@@ -1204,6 +1230,12 @@ void RepoWidget::showHistoryContextMenu(const QPoint &pos)
 
     if (selection.size() == 1 && selection[0].row() == 0) {
         actReword = menu.addAction(QStringLiteral("Reword HEAD Commit"));
+    }
+
+    QAction *actCherryPick = nullptr;
+    if (selection.size() == 1) {
+        menu.addSeparator();
+        actCherryPick = menu.addAction(QStringLiteral("Cherry-pick this commit"));
     }
 
     if (menu.isEmpty()) return;
@@ -1248,6 +1280,20 @@ void RepoWidget::showHistoryContextMenu(const QPoint &pos)
                                                       gc.commit.message, &ok);
         if (ok && !text.isEmpty() && text != gc.commit.message) {
             if (m_git->commit(text, true)) { // true = amend
+                refreshAll();
+            } else {
+                QMessageBox::critical(this, "Error", m_git->lastError());
+            }
+        }
+    } else if (res == actCherryPick) {
+        QVariant data = m_logModel->data(selection[0], CommitGraphModel::GraphNodeRole);
+        GraphCommit gc = data.value<GraphCommit>();
+        
+        if (QMessageBox::question(this, "Cherry-pick", 
+            QStringLiteral("Are you sure you want to cherry-pick commit '%1' into your current branch?").arg(gc.commit.shortId)) == QMessageBox::Yes) 
+        {
+            if (m_git->cherryPick(gc.commit.id)) {
+                QMessageBox::information(this, "Success", "Cherry-pick successful. The changes are now in your working directory/index. You can commit them from the Local Files view.");
                 refreshAll();
             } else {
                 QMessageBox::critical(this, "Error", m_git->lastError());

@@ -1554,6 +1554,57 @@ bool GitManager::revertCommit(const QString &commitId)
     return true;
 }
 
+QVector<BlameLine> GitManager::getBlame(const QString &filePath)
+{
+    QVector<BlameLine> result;
+    if (!ensureOpen() || filePath.isEmpty()) return result;
+
+    git_blame_options opts = GIT_BLAME_OPTIONS_INIT;
+    git_blame *blame = nullptr;
+
+    if (git_blame_file(&blame, m_repo, filePath.toUtf8().constData(), &opts) < 0) {
+        setError(QStringLiteral("Failed to blame file '%1'").arg(filePath));
+        return result;
+    }
+
+    QFile file(QDir(repoPath()).absoluteFilePath(filePath));
+    QStringList lines;
+    if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        lines = QString::fromUtf8(file.readAll()).split('\n');
+    }
+
+    uint32_t hunk_count = git_blame_get_hunk_count(blame);
+    for (uint32_t i = 0; i < hunk_count; ++i) {
+        const git_blame_hunk *hunk = git_blame_get_hunk_byindex(blame, i);
+        if (!hunk) continue;
+
+        char oid_str[GIT_OID_HEXSZ + 1];
+        git_oid_tostr(oid_str, sizeof(oid_str), &hunk->final_commit_id);
+        QString commitId = QString::fromUtf8(oid_str);
+        
+        QString author = hunk->final_signature ? QString::fromUtf8(hunk->final_signature->name) : QStringLiteral("Unknown");
+        QDateTime date;
+        if (hunk->final_signature) {
+            date = QDateTime::fromSecsSinceEpoch(hunk->final_signature->when.time);
+        }
+
+        for (uint16_t j = 0; j < hunk->lines_in_hunk; ++j) {
+            BlameLine bl;
+            bl.commitId = commitId;
+            bl.author = author;
+            bl.date = date;
+            bl.lineNo = hunk->final_start_line_number + j;
+            if (bl.lineNo >= 1 && bl.lineNo <= lines.size()) {
+                bl.code = lines[bl.lineNo - 1];
+            }
+            result.append(bl);
+        }
+    }
+
+    git_blame_free(blame);
+    return result;
+}
+
 // ═══════════════════════════════════════════════════════════════════
 //  Faz 6 — Credentials & Remote Operations
 // ═══════════════════════════════════════════════════════════════════

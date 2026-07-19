@@ -74,6 +74,14 @@ struct CommitInfo {
     QStringList refs;      // branch names pointing to this commit
 };
 
+struct BlameLine {
+    QString commitId;
+    QString author;
+    QDateTime date;
+    int lineNo;
+    QString code;
+};
+
 struct BranchInfo {
     QString name;
     bool isRemote = false;
@@ -120,8 +128,10 @@ public:
     bool resolveUsingOurs(const QString &path);
     bool resolveUsingTheirs(const QString &path);
 
-    /* ── History Rewrite (Faz 3) ─────────────────────── */
+    /* ── History Rewrite (Faz 3 & 4) ─────────────────── */
     bool squashCommits(const QString &baseCommitId, const QString &newMessage);
+    bool cherryPick(const QString &commitId);
+    bool revertCommit(const QString &commitId);
 
     /* ── Push / Pull / Fetch (Faz 2 & 6) ─────────────── */
     bool push(const QString &remoteName = QStringLiteral("origin"));
@@ -136,9 +146,10 @@ public:
     QString getWorkdirDiff(const QString &filePath = QString());
     QString getStagedDiff(const QString &filePath = QString());
     
-    /* ── Commit Details (Faz 5) ──────────────────────── */
+    /* ── Commit Details & Blame (Faz 4 & 5) ──────────── */
     QVector<FileStatusEntry> getCommitChangedFiles(const QString &commitId);
     QString getCommitDiff(const QString &commitId, const QString &filePath = QString());
+    QVector<BlameLine> getBlame(const QString &filePath);
 
     /* ── Branch management (Faz 4) ───────────────────── */
     QVector<BranchInfo> getBranches();
@@ -151,9 +162,6 @@ public:
     /* ── Stash & Advanced (Faz 3) ────────────────────── */
     bool stashSave(const QString &message);
     bool stashPop();
-    bool cherryPick(const QString &commitId);
-    bool revertCommit(const QString &commitId);
-
     /* ── Error handling ──────────────────────────────── */
     QString lastError() const;
 
