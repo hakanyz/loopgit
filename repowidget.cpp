@@ -89,6 +89,7 @@ void RepoWidget::setupCentralWidget() {
     m_dirTree->setColumnHidden(3, true);
     m_dirTree->setHeaderHidden(true);
     m_dirTree->setAlternatingRowColors(true);
+    m_dirTree->setMinimumWidth(220);
 
     m_localChangesTree = new QTreeWidget;
     m_localChangesTree->setHeaderLabels({"Status", "File"});
@@ -181,12 +182,14 @@ void RepoWidget::setupCentralWidget() {
     QSplitter *localContentSplitter = new QSplitter(Qt::Horizontal);
     localContentSplitter->addWidget(fileChangesWidget);
     localContentSplitter->addWidget(m_commitPanelWidget);
+    localContentSplitter->setSizes({600, 250});
     localContentSplitter->setStretchFactor(0, 7);
     localContentSplitter->setStretchFactor(1, 3);
 
     QSplitter *localTopSplitter = new QSplitter(Qt::Horizontal);
     localTopSplitter->addWidget(m_dirTree);
     localTopSplitter->addWidget(localContentSplitter);
+    localTopSplitter->setSizes({220, 800});
     localTopSplitter->setStretchFactor(0, 2);
     localTopSplitter->setStretchFactor(1, 8);
 
@@ -195,6 +198,7 @@ void RepoWidget::setupCentralWidget() {
     QSplitter *localMainSplitter = new QSplitter(Qt::Vertical);
     localMainSplitter->addWidget(localTopSplitter);
     localMainSplitter->addWidget(m_localDiffView);
+    localMainSplitter->setSizes({400, 300});
     localMainSplitter->setStretchFactor(0, 6);
     localMainSplitter->setStretchFactor(1, 4);
 
@@ -202,6 +206,7 @@ void RepoWidget::setupCentralWidget() {
     m_branchesTree->setHeaderHidden(true);
     m_branchesTree->setRootIsDecorated(true);
     m_branchesTree->setAlternatingRowColors(true);
+    m_branchesTree->setMinimumWidth(220);
     m_logModel    = new CommitGraphModel(this);
     m_logProxyModel = new QSortFilterProxyModel(this);
     m_logProxyModel->setSourceModel(m_logModel);
@@ -284,6 +289,7 @@ void RepoWidget::setupCentralWidget() {
     historyTopSplitter->addWidget(m_branchesTree);
     historyTopSplitter->addWidget(logWidget);
     historyTopSplitter->addWidget(historyRightWidget);
+    historyTopSplitter->setSizes({220, 600, 250});
     historyTopSplitter->setStretchFactor(0, 2);
     historyTopSplitter->setStretchFactor(1, 6);
     historyTopSplitter->setStretchFactor(2, 3);
@@ -293,6 +299,7 @@ void RepoWidget::setupCentralWidget() {
     QSplitter *historyMainSplitter = new QSplitter(Qt::Vertical);
     historyMainSplitter->addWidget(historyTopSplitter);
     historyMainSplitter->addWidget(m_historyDiffView);
+    historyMainSplitter->setSizes({400, 300});
     historyMainSplitter->setStretchFactor(0, 6);
     historyMainSplitter->setStretchFactor(1, 4);
 
