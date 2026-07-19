@@ -9,6 +9,7 @@ class QToolBar;
 class QAction;
 class QComboBox;
 class RepoWidget;
+class QLabel;
 
 class MainWindow : public QMainWindow
 {
@@ -58,9 +59,10 @@ private:
     QAction *m_actRefresh;
     QAction *m_actStageAll;
     QAction *m_actUnstageAll;
-    QAction *m_actPush;
     QAction *m_actPull;
+    QAction *m_actPush;
     QAction *m_actFetch;
+    QLabel *m_syncStatusLabel;
     QAction *m_actNewBranch;
     QAction *m_actDeleteBranch;
     QAction *m_actMergeBranch;

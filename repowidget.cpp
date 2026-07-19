@@ -23,6 +23,7 @@
 #include <QActionGroup>
 #include "commitgraphmodel.h"
 #include "commitgraphdelegate.h"
+#include "branchdialog.h"
 #include <QLabel>
 #include <QFileDialog>
 #include <QMessageBox>
@@ -112,8 +113,10 @@ void RepoWidget::setupCentralWidget() {
     QLabel *commitLabel = new QLabel("Commit Message:");
     m_commitEdit = new QTextEdit;
     m_commitEdit->setPlaceholderText("Enter commit message...");
+    m_commitEdit->setMaximumHeight(80);
     m_commitBtn = new QPushButton(QString::fromUtf8("\xe2\x9c\x93 Commit"));
     m_commitBtn->setMinimumHeight(32);
+    m_commitBtn->setMaximumHeight(32);
 
     QVBoxLayout *commitPanelLayout = new QVBoxLayout;
     commitPanelLayout->setContentsMargins(4, 4, 4, 4);
@@ -125,14 +128,19 @@ void RepoWidget::setupCentralWidget() {
 
     m_commitPanelWidget = new QWidget;
     m_commitPanelWidget->setLayout(commitPanelLayout);
+    m_commitPanelWidget->setMaximumHeight(160);
+
+    QSplitter *centerSplitter = new QSplitter(Qt::Vertical);
+    centerSplitter->addWidget(m_localChangesTree);
+    centerSplitter->addWidget(m_commitPanelWidget);
+    centerSplitter->setStretchFactor(0, 7);
+    centerSplitter->setStretchFactor(1, 3);
 
     QSplitter *localTopSplitter = new QSplitter(Qt::Horizontal);
     localTopSplitter->addWidget(m_dirTree);
-    localTopSplitter->addWidget(m_localChangesTree);
-    localTopSplitter->addWidget(m_commitPanelWidget);
+    localTopSplitter->addWidget(centerSplitter);
     localTopSplitter->setStretchFactor(0, 2);
-    localTopSplitter->setStretchFactor(1, 4);
-    localTopSplitter->setStretchFactor(2, 3);
+    localTopSplitter->setStretchFactor(1, 8);
 
     m_localDiffView = new DiffViewWidget;
 
@@ -146,6 +154,7 @@ void RepoWidget::setupCentralWidget() {
     m_branchesTree->setHeaderHidden(true);
     m_branchesTree->setRootIsDecorated(true);
     m_branchesTree->setAlternatingRowColors(true);
+    m_branchesTree->setContextMenuPolicy(Qt::CustomContextMenu);
 
     m_logTable = new QTableView;
     m_logTable->setModel(m_logModel);
@@ -274,8 +283,47 @@ void RepoWidget::connectSignals()
     
     // Branches context menus
     m_branchesTree->setContextMenuPolicy(Qt::CustomContextMenu);
-    connect(m_branchesTree, &QTreeWidget::customContextMenuRequested, this, &RepoWidget::showBranchContextMenu);
     connect(m_branchesTree, &QTreeWidget::itemDoubleClicked, this, &RepoWidget::onBranchItemDoubleClicked);
+    connect(m_branchesTree, &QTreeWidget::customContextMenuRequested, this, [this](const QPoint &pos) {
+        QTreeWidgetItem *item = m_branchesTree->itemAt(pos);
+        if (!item || item->parent() == nullptr) return; // Ignore root items like "Local" or "Remote"
+
+        QString branchName = item->data(0, Qt::UserRole).toString();
+        if (branchName.isEmpty()) return;
+
+        QMenu menu(this);
+        menu.addAction("Checkout", this, [this, branchName]() {
+            if (m_git->checkoutBranch(branchName)) {
+                emit statusMessage(QStringLiteral("Switched to branch '%1'").arg(branchName));
+                refreshAll();
+            } else {
+                QMessageBox::warning(this, "Checkout Failed", "Failed to checkout branch. Do you have uncommitted changes?");
+            }
+        });
+        
+        // Don't show Merge/Delete for current branch
+        if (branchName != m_git->getCurrentBranch()) {
+            menu.addAction("Merge into current branch", this, [this, branchName]() {
+                if (QMessageBox::question(this, "Merge", QString("Merge branch '%1' into current branch?").arg(branchName)) == QMessageBox::Yes) {
+                    if (m_git->mergeBranch(branchName)) {
+                        emit statusMessage(QStringLiteral("Merged branch '%1' successfully").arg(branchName));
+                        refreshAll();
+                    } else {
+                        QMessageBox::warning(this, "Merge Failed", "Failed to merge branch or there are conflicts.");
+                    }
+                }
+            });
+            menu.addAction("Delete branch", this, [this, branchName]() {
+                if (QMessageBox::question(this, "Delete", QString("Are you sure you want to delete branch '%1'?").arg(branchName)) == QMessageBox::Yes) {
+                    if (m_git->deleteBranch(branchName)) {
+                        emit statusMessage(QStringLiteral("Deleted branch '%1'").arg(branchName));
+                        refreshAll();
+                    }
+                }
+            });
+        }
+        menu.exec(m_branchesTree->viewport()->mapToGlobal(pos));
+    });
 
     // Commit context menus
     m_logTable->setContextMenuPolicy(Qt::CustomContextMenu);
@@ -694,6 +742,27 @@ void RepoWidget::createBranch()
         if (m_git->createBranch(name)) {
             emit statusMessage(
                 QStringLiteral("Branch '%1' created").arg(name));
+            refreshAll();
+        }
+    }
+}
+
+void RepoWidget::startGitFlowBranch(const QString &prefix)
+{
+    BranchDialog dlg(prefix, this);
+    if (dlg.exec() == QDialog::Accepted) {
+        QString branchName = dlg.branchName();
+        if (branchName.isEmpty()) return;
+
+        if (m_git->createBranch(branchName)) {
+            emit statusMessage(QStringLiteral("Branch '%1' created").arg(branchName));
+            if (dlg.shouldCheckout()) {
+                if (m_git->checkoutBranch(branchName)) {
+                    emit statusMessage(QStringLiteral("Switched to branch '%1'").arg(branchName));
+                } else {
+                    QMessageBox::warning(this, "Checkout Failed", "Branch created but checkout failed. Commit your changes first.");
+                }
+            }
             refreshAll();
         }
     }

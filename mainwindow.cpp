@@ -10,6 +10,8 @@
 #include <QStatusBar>
 #include <QFileDialog>
 #include <QMessageBox>
+#include <QMenu>
+#include <QToolButton>
 #include <QLabel>
 #include <QComboBox>
 #include <QSettings>
@@ -165,12 +167,29 @@ void MainWindow::setupToolBar()
 
     m_toolBar->addSeparator();
 
-    m_actRefresh = new QAction(QIcon(":/resources/icons/start.svg"), "Refresh", this);
+    m_actRefresh = new QAction(QIcon(":/resources/icons/refresh.svg"), "Refresh", this);
     m_toolBar->addAction(m_actRefresh);
 
     QWidget *spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     m_toolBar->addWidget(spacer);
+
+    m_syncStatusLabel = new QLabel(this);
+    m_syncStatusLabel->setStyleSheet("color: #7A7A7A; padding-right: 16px; font-weight: bold;");
+    m_toolBar->addWidget(m_syncStatusLabel);
+
+    QToolButton *gitFlowBtn = new QToolButton(this);
+    gitFlowBtn->setIcon(QIcon(":/resources/icons/branch.svg"));
+    gitFlowBtn->setText("GitFlow");
+    gitFlowBtn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
+    gitFlowBtn->setPopupMode(QToolButton::InstantPopup);
+    QMenu *gitFlowMenu = new QMenu(gitFlowBtn);
+    gitFlowMenu->addAction("Feature...", this, [this]() { if(auto rw = currentRepoWidget()) rw->startGitFlowBranch("feature/"); });
+    gitFlowMenu->addAction("Bugfix...", this, [this]() { if(auto rw = currentRepoWidget()) rw->startGitFlowBranch("bugfix/"); });
+    gitFlowMenu->addAction("Release...", this, [this]() { if(auto rw = currentRepoWidget()) rw->startGitFlowBranch("release/"); });
+    gitFlowMenu->addAction("Hotfix...", this, [this]() { if(auto rw = currentRepoWidget()) rw->startGitFlowBranch("hotfix/"); });
+    gitFlowBtn->setMenu(gitFlowMenu);
+    m_toolBar->addWidget(gitFlowBtn);
 
     m_branchCombo = new QComboBox(this);
     m_branchCombo->setMinimumWidth(120);
@@ -383,7 +402,11 @@ void MainWindow::openRepositoryPath(const QString &path)
     }
 
     RepoWidget *rw = new RepoWidget(path, this);
-    connect(rw, &RepoWidget::statusMessage, this, &MainWindow::showStatusMessage);
+    connect(rw, &RepoWidget::statusMessage, this, [this](const QString &msg) {
+        if (currentRepoWidget() == sender()) {
+            m_syncStatusLabel->setText(msg);
+        }
+    });
     connect(rw, &RepoWidget::errorOccurred, this, &MainWindow::showError);
     connect(rw, &RepoWidget::branchListChanged, this, [this](const QStringList &branches, const QString &currentBranch) {
         if (currentRepoWidget() == sender()) {
@@ -405,6 +428,7 @@ void MainWindow::openRepositoryPath(const QString &path)
     m_tabWidget->show();
     m_toolBar->setEnabled(true);
     m_branchCombo->setVisible(true);
+    m_syncStatusLabel->setVisible(true);
 }
 
 void MainWindow::closeCurrentRepository()
@@ -419,6 +443,7 @@ void MainWindow::closeCurrentRepository()
             m_tabWidget->hide();
             m_toolBar->setEnabled(false);
             m_branchCombo->setVisible(false);
+            m_syncStatusLabel->setVisible(false);
             setWindowTitle("LoopGit");
         }
     }
@@ -431,8 +456,11 @@ void MainWindow::onTabChanged(int index)
     RepoWidget *rw = qobject_cast<RepoWidget*>(m_tabWidget->widget(index));
     if (rw) {
         setWindowTitle(QString("LoopGit - %1").arg(rw->repoPath()));
-        // Note: we can't call rw->refreshAll() directly yet because refreshAll() is private slots in RepoWidget.
-        // It's called internally when the repo opens anyway.
+        connect(rw, &RepoWidget::statusMessage, this, [this, rw](const QString &msg) {
+            if (currentRepoWidget() == rw) {
+                m_syncStatusLabel->setText(msg);
+            }
+        });
     }
 }
 

@@ -68,6 +68,8 @@ set(PROJECT_SOURCES
     gitmanager.cpp
     diffviewwidget.h
     diffviewwidget.cpp
+    branchdialog.h
+    branchdialog.cpp
     commitgraphmodel.h
     commitgraphmodel.cpp
     commitgraphdelegate.h

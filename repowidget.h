@@ -40,6 +40,7 @@ public slots:
     void doPush();
     void doPull();
     void doFetch();
+    void startGitFlowBranch(const QString &prefix);
 
 private slots:
     // ── File list ───────────────────────────────────────

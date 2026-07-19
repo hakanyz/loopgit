@@ -12,5 +12,6 @@
         <file>resources/icons/cherry.svg</file>
         <file>resources/icons/revert.svg</file>
         <file>resources/icons/refresh.svg</file>
+        <file>resources/icons/branch.svg</file>
     </qresource>
 </RCC>
