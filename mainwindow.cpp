@@ -136,25 +136,19 @@ void MainWindow::setupToolBar()
 {
     m_toolBar = addToolBar(QStringLiteral("Main"));
     m_toolBar->setMovable(false);
-    m_toolBar->setIconSize(QSize(32, 32));
-    m_toolBar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
+    m_toolBar->setToolButtonStyle(Qt::ToolButtonTextOnly);
+    m_toolBar->setStyleSheet(QStringLiteral(
+        "QToolBar { padding: 5px; border-bottom: 1px solid #333; }"
+        "QToolButton { margin: 0 2px; padding: 4px 8px; font-size: 13px; border-radius: 4px; }"
+        "QToolButton:hover { background-color: #2D2D2D; }"
+        "QComboBox { margin: 0 10px; padding: 4px; border: 1px solid #555; border-radius: 4px; min-width: 150px; }"
+    ));
 
-    // Provide default style icons via QStyle
-    QIcon iconFolder = style()->standardIcon(QStyle::SP_DirOpenIcon);
-    QIcon iconHistory = style()->standardIcon(QStyle::SP_FileDialogDetailedView);
-    QIcon iconDown = style()->standardIcon(QStyle::SP_ArrowDown);
-    QIcon iconUp = style()->standardIcon(QStyle::SP_ArrowUp);
-    QIcon iconSave = style()->standardIcon(QStyle::SP_DialogSaveButton);
-    QIcon iconOpen = style()->standardIcon(QStyle::SP_DialogOpenButton);
-    QIcon iconCherry = style()->standardIcon(QStyle::SP_FileIcon);
-    QIcon iconRevert = style()->standardIcon(QStyle::SP_BrowserStop);
-    QIcon iconRefresh = style()->standardIcon(QStyle::SP_BrowserReload);
-
-    m_actLocalFiles = new QAction(iconFolder, QStringLiteral("Local Files"), this);
+    m_actLocalFiles = new QAction(QStringLiteral("Local Files"), this);
     m_actLocalFiles->setCheckable(true);
     m_actLocalFiles->setChecked(true); // Default
 
-    m_actHistory = new QAction(iconHistory, QStringLiteral("History"), this);
+    m_actHistory = new QAction(QStringLiteral("History"), this);
     m_actHistory->setCheckable(true);
 
     QActionGroup *perspectiveGroup = new QActionGroup(this);
@@ -166,36 +160,60 @@ void MainWindow::setupToolBar()
     m_toolBar->addAction(m_actHistory);
     m_toolBar->addSeparator();
 
-    m_actFetch->setIcon(iconDown); // Or another icon
+    // Branch Control
+    m_branchCombo = new QComboBox(this);
+    m_toolBar->addWidget(m_branchCombo);
+    
+    connect(m_branchCombo, &QComboBox::textActivated, this, [this](const QString &branchName){
+        if (branchName.isEmpty() || branchName == m_git->getCurrentBranch()) return;
+        if (m_git->checkoutBranch(branchName)) {
+            refreshAll();
+        } else {
+            QMessageBox::warning(this, "Checkout Failed", "Failed to checkout branch. Do you have uncommitted changes?");
+            updateBranchCombo(); // Reset combo to current branch
+        }
+    });
+
+    m_toolBar->addSeparator();
+
     m_actFetch->setText("Fetch");
     m_toolBar->addAction(m_actFetch);
 
-    m_actPull->setIcon(iconDown);
     m_actPull->setText("Pull");
     m_toolBar->addAction(m_actPull);
 
-    m_actPush->setIcon(iconUp);
     m_actPush->setText("Push");
     m_toolBar->addAction(m_actPush);
     m_toolBar->addSeparator();
 
-    QAction *actStash = new QAction(iconSave, QStringLiteral("Stash"), this);
+    QAction *actStash = new QAction(QStringLiteral("Stash"), this);
     m_toolBar->addAction(actStash);
     
-    QAction *actPop = new QAction(iconOpen, QStringLiteral("Pop"), this);
+    QAction *actPop = new QAction(QStringLiteral("Pop Stash"), this);
     m_toolBar->addAction(actPop);
     m_toolBar->addSeparator();
 
-    QAction *actCherry = new QAction(iconCherry, QStringLiteral("Cherry-Pick"), this);
+    QAction *actCherry = new QAction(QStringLiteral("Cherry-Pick"), this);
     m_toolBar->addAction(actCherry);
 
-    QAction *actRevertBtn = new QAction(iconRevert, QStringLiteral("Revert"), this);
+    QAction *actRevertBtn = new QAction(QStringLiteral("Revert"), this);
     m_toolBar->addAction(actRevertBtn);
     m_toolBar->addSeparator();
 
-    m_actRefresh->setIcon(iconRefresh);
     m_actRefresh->setText("Refresh");
     m_toolBar->addAction(m_actRefresh);
+
+    // Push Sync Status Label to the right
+    QWidget *spacer = new QWidget(this);
+    spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    m_toolBar->addWidget(spacer);
+    
+    // We already created m_syncStatusLabel in setupStatusBar, but let's re-parent it here
+    // Wait, setupStatusBar is called AFTER setupToolBar. We should move its initialization here.
+    // I will remove it from setupStatusBar in another chunk.
+    m_syncStatusLabel = new QLabel(QStringLiteral("Sync: Offline"));
+    m_syncStatusLabel->setStyleSheet(QStringLiteral("color: #888888; padding: 0 10px; background: transparent; border: none; font-weight: bold;"));
+    m_toolBar->addWidget(m_syncStatusLabel);
 
     connect(actStash, &QAction::triggered, this, [this](){
         bool ok;
@@ -427,13 +445,8 @@ void MainWindow::setupStatusBar()
     m_statusLabel = new QLabel(QStringLiteral("No repository open"));
     m_statusLabel->setFrameStyle(QFrame::NoFrame);
     
-    m_syncStatusLabel = new QLabel(QStringLiteral("Sync: Offline"));
-    m_syncStatusLabel->setFrameStyle(QFrame::NoFrame);
-    m_syncStatusLabel->setStyleSheet(QStringLiteral("color: #888888; padding: 0 10px; background: transparent; border: none;"));
-    
     statusBar()->addWidget(m_statusLabel, 1);
-    statusBar()->addPermanentWidget(m_syncStatusLabel, 0);
-    statusBar()->setStyleSheet(QStringLiteral("QStatusBar::item { border: none; }")); // Removes the sunken box around status bar items
+    statusBar()->setStyleSheet(QStringLiteral("QStatusBar::item { border: none; }"));
 }
 
 // ─── Connections ───────────────────────────────────────────────────
@@ -746,6 +759,7 @@ void MainWindow::refreshAll()
     updateFileList();
     updateCommitLog();
     updateBranchesTree();
+    updateBranchCombo();
 
     // Status bar summary
     int staged = m_stagedRoot->childCount();
@@ -1462,4 +1476,28 @@ void MainWindow::showAboutDialog()
         "<p><i>Built with a lot of coffee ☕ and ❤️ by Hakan.</i></p>"
     ));
     aboutBox.exec();
+}
+
+void MainWindow::updateBranchCombo()
+{
+    if (!m_git->isOpen()) {
+        m_branchCombo->clear();
+        m_branchCombo->setEnabled(false);
+        return;
+    }
+    
+    m_branchCombo->blockSignals(true);
+    m_branchCombo->clear();
+    
+    QVector<BranchInfo> branches = m_git->getBranches();
+    for (const auto &b : branches) {
+        if (!b.isRemote) { // Only show local branches for checkout in the combo
+            m_branchCombo->addItem(b.name);
+            if (b.isHead) {
+                m_branchCombo->setCurrentText(b.name);
+            }
+        }
+    }
+    m_branchCombo->setEnabled(true);
+    m_branchCombo->blockSignals(false);
 }

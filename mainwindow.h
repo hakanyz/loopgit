@@ -67,6 +67,7 @@ private slots:
     void cloneRepository();
     void openCredentials();
     void showAboutDialog();
+    void updateBranchCombo();
 
     // ── Commit Graph and Commit Diff ────────────────────
     void onCommitSelected(const QItemSelection &selected, const QItemSelection &deselected);
@@ -125,6 +126,7 @@ private:
     QLabel         *m_statusLabel;
     QLabel         *m_syncStatusLabel;
     QToolBar       *m_toolBar;
+    QComboBox      *m_branchCombo;
     QSplitter      *m_mainSplitter;
     QSplitter      *m_leftSplitter;
     QSplitter      *m_centerTopSplitter;
