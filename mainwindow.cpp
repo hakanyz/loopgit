@@ -739,20 +739,11 @@ void MainWindow::openCredentials()
 
 void MainWindow::showAboutDialog()
 {
-    QDialog aboutDlg(this);
-    aboutDlg.setWindowTitle("About LoopGit");
-    
-    QVBoxLayout *layout = new QVBoxLayout(&aboutDlg);
-    
-    QHBoxLayout *hLayout = new QHBoxLayout;
-    QLabel *iconLabel = new QLabel;
-    iconLabel->setPixmap(windowIcon().pixmap(64, 64));
-    hLayout->addWidget(iconLabel, 0, Qt::AlignTop);
-    
-    QLabel *textLabel = new QLabel;
-    textLabel->setTextFormat(Qt::RichText);
-    textLabel->setOpenExternalLinks(true);
-    textLabel->setText(
+    QMessageBox aboutBox(this);
+    aboutBox.setWindowTitle("About LoopGit");
+    aboutBox.setIconPixmap(windowIcon().pixmap(64, 64));
+    aboutBox.setTextFormat(Qt::RichText);
+    aboutBox.setText(
         "<h2 style='margin-bottom:2px;'>LoopGit</h2>"
         "<p style='color:#888; margin-top:0;'>Version " + qApp->applicationVersion() + "</p>"
         "<p>A fast, modern Git GUI client built with <b>C++ / Qt6</b> and <b>libgit2</b>.</p>"
@@ -761,22 +752,7 @@ void MainWindow::showAboutDialog()
         "<p><b>Author:</b> Hakan</p>"
         "<p><a href='https://github.com/hakanyz/loopgit'>github.com/hakanyz/loopgit</a></p>"
     );
-    hLayout->addWidget(textLabel);
-    layout->addLayout(hLayout);
-    
-    QDialogButtonBox *btnBox = new QDialogButtonBox(QDialogButtonBox::Ok);
-    QPushButton *btnUpdate = new QPushButton("Check for Updates");
-    btnBox->addButton(btnUpdate, QDialogButtonBox::ActionRole);
-    
-    connect(btnUpdate, &QPushButton::clicked, this, [this, &aboutDlg]() {
-        aboutDlg.accept();
-        checkForUpdates(false);
-    });
-    connect(btnBox, &QDialogButtonBox::accepted, &aboutDlg, &QDialog::accept);
-    
-    layout->addWidget(btnBox);
-    
-    aboutDlg.exec();
+    aboutBox.exec();
 }
 
 void MainWindow::showShortcutsDialog()
