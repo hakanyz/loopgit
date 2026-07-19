@@ -173,6 +173,9 @@ QVariant CommitGraphModel::data(const QModelIndex &index, int role) const
     else if (role == Qt::ForegroundRole) {
         return QColor("#D4D4D4");
     }
+    else if (role == Qt::TextAlignmentRole) {
+        return Qt::AlignVCenter | Qt::AlignLeft;
+    }
 
     return QVariant();
 }

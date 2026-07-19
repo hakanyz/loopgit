@@ -29,7 +29,7 @@ MainWindow::MainWindow(QWidget *parent)
 {
     setupUi();
     applyDarkTheme();
-    resize(1200, 800);
+    resize(1440, 900);
 }
 
 MainWindow::~MainWindow()
