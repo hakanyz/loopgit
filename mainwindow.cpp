@@ -349,7 +349,7 @@ void MainWindow::setupToolBar()
             QString workingDir = rw->repoPath();
             if (workingDir.isEmpty()) return;
 #ifdef Q_OS_WIN
-            QProcess::startDetached("powershell.exe", QStringList(), workingDir);
+            QProcess::startDetached("cmd.exe", QStringList() << "/c" << "start" << "powershell.exe", workingDir);
 #elif defined(Q_OS_MAC)
             QStringList args;
             args << "-e" << QString("tell application \"Terminal\" to do script \"cd '%1'\"").arg(workingDir)
