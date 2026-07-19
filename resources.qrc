@@ -13,5 +13,11 @@
         <file>resources/icons/revert.svg</file>
         <file>resources/icons/refresh.svg</file>
         <file>resources/icons/branch.svg</file>
+        <file>resources/icons/feature.svg</file>
+        <file>resources/icons/bugfix.svg</file>
+        <file>resources/icons/release.svg</file>
+        <file>resources/icons/hotfix.svg</file>
+        <file>resources/icons/finish.svg</file>
+        <file>resources/icons/logo.svg</file>
     </qresource>
 </RCC>

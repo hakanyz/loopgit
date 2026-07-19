@@ -82,9 +82,9 @@ void MainWindow::setupWelcomeScreen()
     welcomeLayout->setAlignment(Qt::AlignCenter);
 
     QLabel *logoLabel = new QLabel(this);
-    QPixmap logoPix(":/resources/logo.png");
+    QPixmap logoPix = QIcon(":/resources/icons/logo.svg").pixmap(400, 400);
     if (!logoPix.isNull()) {
-        logoLabel->setPixmap(logoPix.scaled(400, 400, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        logoLabel->setPixmap(logoPix);
         logoLabel->setAlignment(Qt::AlignCenter);
         logoLabel->setStyleSheet("background: transparent; border: none;");
         welcomeLayout->addWidget(logoLabel);
@@ -170,32 +170,38 @@ void MainWindow::setupToolBar()
     m_actRefresh = new QAction(QIcon(":/resources/icons/refresh.svg"), "Refresh", this);
     m_toolBar->addAction(m_actRefresh);
 
+    m_toolBar->addSeparator();
+
+    m_actFeature = new QAction(QIcon(":/resources/icons/feature.svg"), "Feature", this);
+    m_toolBar->addAction(m_actFeature);
+
+    m_actBugfix = new QAction(QIcon(":/resources/icons/bugfix.svg"), "Bugfix", this);
+    m_toolBar->addAction(m_actBugfix);
+
+    m_actRelease = new QAction(QIcon(":/resources/icons/release.svg"), "Release", this);
+    m_toolBar->addAction(m_actRelease);
+
+    m_actHotfix = new QAction(QIcon(":/resources/icons/hotfix.svg"), "Hotfix", this);
+    m_toolBar->addAction(m_actHotfix);
+
+    m_actFinish = new QAction(QIcon(":/resources/icons/finish.svg"), "Finish", this);
+    m_toolBar->addAction(m_actFinish);
+
+    m_toolBar->addSeparator();
+
+    m_branchCombo = new QComboBox(this);
+    m_branchCombo->setMinimumWidth(120);
+    m_toolBar->addWidget(m_branchCombo);
+    m_branchCombo->setVisible(false);
+
     QWidget *spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     spacer->setStyleSheet("background: transparent;");
     m_toolBar->addWidget(spacer);
 
     m_syncStatusLabel = new QLabel(this);
-    m_syncStatusLabel->setStyleSheet("color: #7A7A7A; padding-right: 16px; font-weight: bold;");
+    m_syncStatusLabel->setStyleSheet("background: transparent; color: #7A7A7A; padding-right: 16px; font-weight: bold;");
     m_toolBar->addWidget(m_syncStatusLabel);
-
-    QToolButton *gitFlowBtn = new QToolButton(this);
-    gitFlowBtn->setIcon(QIcon(":/resources/icons/branch.svg"));
-    gitFlowBtn->setText("GitFlow");
-    gitFlowBtn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    gitFlowBtn->setPopupMode(QToolButton::InstantPopup);
-    QMenu *gitFlowMenu = new QMenu(gitFlowBtn);
-    gitFlowMenu->addAction("Feature...", this, [this]() { if(auto rw = currentRepoWidget()) rw->startGitFlowBranch("feature/"); });
-    gitFlowMenu->addAction("Bugfix...", this, [this]() { if(auto rw = currentRepoWidget()) rw->startGitFlowBranch("bugfix/"); });
-    gitFlowMenu->addAction("Release...", this, [this]() { if(auto rw = currentRepoWidget()) rw->startGitFlowBranch("release/"); });
-    gitFlowMenu->addAction("Hotfix...", this, [this]() { if(auto rw = currentRepoWidget()) rw->startGitFlowBranch("hotfix/"); });
-    gitFlowBtn->setMenu(gitFlowMenu);
-    m_toolBar->addWidget(gitFlowBtn);
-
-    m_branchCombo = new QComboBox(this);
-    m_branchCombo->setMinimumWidth(120);
-    m_toolBar->addWidget(m_branchCombo);
-    m_branchCombo->setVisible(false);
 
     connect(m_actLocalFiles, &QAction::triggered, this, [this]() {
         m_actHistory->setChecked(false);
@@ -213,6 +219,12 @@ void MainWindow::setupToolBar()
     connect(m_actFetch, &QAction::triggered, this, [this]() { if (auto rw = currentRepoWidget()) rw->doFetch(); });
     connect(m_actPull, &QAction::triggered, this, [this]() { if (auto rw = currentRepoWidget()) rw->doPull(); });
     connect(m_actPush, &QAction::triggered, this, [this]() { if (auto rw = currentRepoWidget()) rw->doPush(); });
+
+    connect(m_actFeature, &QAction::triggered, this, [this]() { if(auto rw = currentRepoWidget()) rw->startGitFlowBranch("feature/"); });
+    connect(m_actBugfix, &QAction::triggered, this, [this]() { if(auto rw = currentRepoWidget()) rw->startGitFlowBranch("bugfix/"); });
+    connect(m_actRelease, &QAction::triggered, this, [this]() { if(auto rw = currentRepoWidget()) rw->startGitFlowBranch("release/"); });
+    connect(m_actHotfix, &QAction::triggered, this, [this]() { if(auto rw = currentRepoWidget()) rw->startGitFlowBranch("hotfix/"); });
+    connect(m_actFinish, &QAction::triggered, this, [this]() { if(auto rw = currentRepoWidget()) rw->finishGitFlowBranch(); });
 
     connect(m_branchCombo, QOverload<int>::of(&QComboBox::activated), this, &MainWindow::onBranchComboActivated);
 

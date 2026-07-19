@@ -768,6 +768,54 @@ void RepoWidget::startGitFlowBranch(const QString &prefix)
     }
 }
 
+void RepoWidget::finishGitFlowBranch()
+{
+    QString currentBranch = m_git->getCurrentBranch();
+    if (currentBranch.isEmpty() || currentBranch == "main" || currentBranch == "master") {
+        QMessageBox::information(this, "Finish Branch", "You must be on a feature, bugfix, release, or hotfix branch to finish it.");
+        return;
+    }
+
+    // Find main or master
+    QVector<BranchInfo> branches = m_git->getBranches();
+    QString targetBranch = "";
+    for (const auto &b : branches) {
+        if (b.name == "main") {
+            targetBranch = "main";
+            break;
+        } else if (b.name == "master") {
+            targetBranch = "master";
+        }
+    }
+
+    if (targetBranch.isEmpty()) {
+        QMessageBox::warning(this, "Finish Branch", "Could not find 'main' or 'master' branch to merge into.");
+        return;
+    }
+
+    int ret = QMessageBox::question(this, "Finish Branch", 
+        QString("Finish branch '%1'?\n\nThis will merge it into '%2' and then delete '%1'.").arg(currentBranch, targetBranch),
+        QMessageBox::Yes | QMessageBox::No);
+        
+    if (ret == QMessageBox::Yes) {
+        if (!m_git->checkoutBranch(targetBranch)) {
+            QMessageBox::warning(this, "Checkout Failed", QString("Could not checkout '%1'. Do you have uncommitted changes?").arg(targetBranch));
+            return;
+        }
+
+        if (m_git->mergeBranch(currentBranch)) {
+            if (m_git->deleteBranch(currentBranch)) {
+                emit statusMessage(QStringLiteral("Successfully finished and deleted '%1'").arg(currentBranch));
+            } else {
+                emit statusMessage(QStringLiteral("Merged '%1', but failed to delete it.").arg(currentBranch));
+            }
+        } else {
+            QMessageBox::warning(this, "Merge Failed", "Merge failed or resulted in conflicts. The branch was not deleted.");
+        }
+        refreshAll();
+    }
+}
+
 void RepoWidget::deleteBranch()
 {
     QVector<BranchInfo> branches = m_git->getBranches();

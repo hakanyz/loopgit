@@ -63,9 +63,12 @@ private:
     QAction *m_actPush;
     QAction *m_actFetch;
     QLabel *m_syncStatusLabel;
-    QAction *m_actNewBranch;
-    QAction *m_actDeleteBranch;
-    QAction *m_actMergeBranch;
+    
+    QAction *m_actFeature;
+    QAction *m_actBugfix;
+    QAction *m_actRelease;
+    QAction *m_actHotfix;
+    QAction *m_actFinish;
 };
 
 #endif // MAINWINDOW_H
