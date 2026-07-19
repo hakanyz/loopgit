@@ -33,6 +33,16 @@
 #include <QProcess>
 #include <QTableWidget>
 #include <QHeaderView>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QProgressDialog>
+#include <QFile>
+#include <QDir>
+#include <QStandardPaths>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -98,10 +108,17 @@ void MainWindow::setupUi()
     m_trayIcon->show();
 
     connect(m_trayIcon, &QSystemTrayIcon::activated, this, [this](QSystemTrayIcon::ActivationReason reason) {
-        if (reason == QSystemTrayIcon::DoubleClick || reason == QSystemTrayIcon::Trigger) {
+        if (reason == QSystemTrayIcon::Trigger || reason == QSystemTrayIcon::DoubleClick) {
             showNormal();
             activateWindow();
         }
+    });
+
+    m_netManager = new QNetworkAccessManager(this);
+    connect(m_trayIcon, &QSystemTrayIcon::messageClicked, this, &MainWindow::onTrayMessageClicked);
+
+    QTimer::singleShot(2000, this, [this]() {
+        checkForUpdates(true);
     });
 
     connect(m_tabWidget, &QTabWidget::currentChanged, this, &MainWindow::onTabChanged);
@@ -214,10 +231,17 @@ void MainWindow::setupMenuBar()
     fileMenu->addSeparator();
     fileMenu->addAction("Exit", this, &QWidget::close);
 
-    QMenu *helpMenu = menuBar()->addMenu("Help");
-    helpMenu->addAction("Keyboard Shortcuts...", this, &MainWindow::showShortcutsDialog);
-    helpMenu->addSeparator();
-    helpMenu->addAction("About LoopGit", this, &MainWindow::showAboutDialog);
+    QMenu *menuHelp = menuBar()->addMenu("Help");
+    QAction *actShortcuts = menuHelp->addAction("Keyboard Shortcuts...");
+    connect(actShortcuts, &QAction::triggered, this, &MainWindow::showShortcutsDialog);
+
+    QAction *actUpdate = menuHelp->addAction("Check for Updates...");
+    connect(actUpdate, &QAction::triggered, this, [this]() {
+        checkForUpdates(false);
+    });
+
+    menuHelp->addSeparator();
+    menuHelp->addAction("About LoopGit", this, &MainWindow::showAboutDialog);
 }
 
 void MainWindow::setupToolBar()
@@ -715,20 +739,44 @@ void MainWindow::openCredentials()
 
 void MainWindow::showAboutDialog()
 {
-    QMessageBox aboutBox(this);
-    aboutBox.setWindowTitle("About LoopGit");
-    aboutBox.setIconPixmap(windowIcon().pixmap(64, 64));
-    aboutBox.setTextFormat(Qt::RichText);
-    aboutBox.setText(
+    QDialog aboutDlg(this);
+    aboutDlg.setWindowTitle("About LoopGit");
+    
+    QVBoxLayout *layout = new QVBoxLayout(&aboutDlg);
+    
+    QHBoxLayout *hLayout = new QHBoxLayout;
+    QLabel *iconLabel = new QLabel;
+    iconLabel->setPixmap(windowIcon().pixmap(64, 64));
+    hLayout->addWidget(iconLabel, 0, Qt::AlignTop);
+    
+    QLabel *textLabel = new QLabel;
+    textLabel->setTextFormat(Qt::RichText);
+    textLabel->setOpenExternalLinks(true);
+    textLabel->setText(
         "<h2 style='margin-bottom:2px;'>LoopGit</h2>"
-        "<p style='color:#888; margin-top:0;'>Version 1.0.0-beta</p>"
+        "<p style='color:#888; margin-top:0;'>Version " + qApp->applicationVersion() + "</p>"
         "<p>A fast, modern Git GUI client built with <b>C++ / Qt6</b> and <b>libgit2</b>.</p>"
         "<p>Built with ❤️ for developers who love speed and simplicity.</p>"
         "<hr>"
         "<p><b>Author:</b> Hakan</p>"
         "<p><a href='https://github.com/hakanyz/loopgit'>github.com/hakanyz/loopgit</a></p>"
     );
-    aboutBox.exec();
+    hLayout->addWidget(textLabel);
+    layout->addLayout(hLayout);
+    
+    QDialogButtonBox *btnBox = new QDialogButtonBox(QDialogButtonBox::Ok);
+    QPushButton *btnUpdate = new QPushButton("Check for Updates");
+    btnBox->addButton(btnUpdate, QDialogButtonBox::ActionRole);
+    
+    connect(btnUpdate, &QPushButton::clicked, this, [this, &aboutDlg]() {
+        aboutDlg.accept();
+        checkForUpdates(false);
+    });
+    connect(btnBox, &QDialogButtonBox::accepted, &aboutDlg, &QDialog::accept);
+    
+    layout->addWidget(btnBox);
+    
+    aboutDlg.exec();
 }
 
 void MainWindow::showShortcutsDialog()
@@ -843,3 +891,126 @@ void MainWindow::closeEvent(QCloseEvent *event)
         qApp->quit();
     }
 }
+
+void MainWindow::checkForUpdates(bool silent)
+{
+    QNetworkRequest request(QUrl("https://api.github.com/repos/hakanyz/loopgit/releases/latest"));
+    request.setHeader(QNetworkRequest::UserAgentHeader, "LoopGit");
+    QNetworkReply *reply = m_netManager->get(request);
+    connect(reply, &QNetworkReply::finished, this, [this, reply, silent]() {
+        onUpdateCheckFinished(reply, silent);
+    });
+}
+
+void MainWindow::onUpdateCheckFinished(QNetworkReply *reply, bool silent)
+{
+    reply->deleteLater();
+    if (reply->error() != QNetworkReply::NoError) {
+        if (!silent) {
+            QMessageBox::warning(this, "Update Check Failed", "Failed to check for updates:\n" + reply->errorString());
+        }
+        return;
+    }
+
+    QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+    if (!doc.isObject()) return;
+    QJsonObject obj = doc.object();
+    
+    QString latestVersion = obj["tag_name"].toString();
+    if (latestVersion.startsWith("v")) latestVersion = latestVersion.mid(1);
+    
+    QString currentVersion = qApp->applicationVersion();
+    if (currentVersion.endsWith("-beta")) currentVersion.replace("-beta", "");
+    
+    QJsonArray assets = obj["assets"].toArray();
+    QString downloadUrl;
+    for (const QJsonValue &val : assets) {
+        QJsonObject asset = val.toObject();
+        if (asset["name"].toString().endsWith(".exe")) {
+            downloadUrl = asset["browser_download_url"].toString();
+            break;
+        }
+    }
+
+    if (latestVersion > currentVersion && !downloadUrl.isEmpty()) {
+        m_latestUpdateVersion = latestVersion;
+        m_latestUpdateUrl = downloadUrl;
+        
+        if (silent) {
+            m_trayIcon->showMessage("LoopGit Update Available", "Version " + latestVersion + " is available! Click here to download and install.", QSystemTrayIcon::Information, 10000);
+        } else {
+            if (QMessageBox::question(this, "Update Available", "LoopGit version " + latestVersion + " is available!\nDo you want to download and install it now?") == QMessageBox::Yes) {
+                startUpdateDownload();
+            }
+        }
+    } else {
+        if (!silent) {
+            QMessageBox::information(this, "Up to Date", "You are using the latest version of LoopGit.");
+        }
+    }
+}
+
+void MainWindow::onTrayMessageClicked()
+{
+    if (!m_latestUpdateUrl.isEmpty()) {
+        if (QMessageBox::question(this, "Update Available", "LoopGit version " + m_latestUpdateVersion + " is available!\nDo you want to download and install it now?") == QMessageBox::Yes) {
+            startUpdateDownload();
+        }
+    }
+}
+
+void MainWindow::startUpdateDownload()
+{
+    QProgressDialog *progressDialog = new QProgressDialog("Downloading update...", "Cancel", 0, 100, this);
+    progressDialog->setWindowTitle("Update");
+    progressDialog->setWindowModality(Qt::WindowModal);
+    progressDialog->setMinimumDuration(0);
+
+    QUrl url(m_latestUpdateUrl);
+    QNetworkRequest request(url);
+    request.setHeader(QNetworkRequest::UserAgentHeader, "LoopGit");
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
+    QNetworkReply *reply = m_netManager->get(request);
+
+    connect(reply, &QNetworkReply::downloadProgress, progressDialog, [progressDialog](qint64 bytesReceived, qint64 bytesTotal) {
+        if (bytesTotal > 0) {
+            progressDialog->setMaximum(bytesTotal);
+            progressDialog->setValue(bytesReceived);
+        }
+    });
+
+    connect(progressDialog, &QProgressDialog::canceled, reply, &QNetworkReply::abort);
+
+    QString tempPath = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/LoopGit_Update_Setup.exe";
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply, tempPath, progressDialog]() {
+        progressDialog->deleteLater();
+        onDownloadFinished(reply, tempPath);
+    });
+}
+
+void MainWindow::onDownloadFinished(QNetworkReply *reply, const QString &downloadPath)
+{
+    reply->deleteLater();
+    if (reply->error() != QNetworkReply::NoError) {
+        if (reply->error() != QNetworkReply::OperationCanceledError) {
+            QMessageBox::warning(this, "Download Failed", "Failed to download update:\n" + reply->errorString());
+        }
+        return;
+    }
+
+    QFile file(downloadPath);
+    if (file.open(QIODevice::WriteOnly)) {
+        file.write(reply->readAll());
+        file.close();
+        
+        QMessageBox::information(this, "Download Complete", "The update has been downloaded. LoopGit will now restart to install the update.");
+        
+        QProcess::startDetached(downloadPath, QStringList() << "/SILENT");
+        m_reallyQuit = true;
+        qApp->quit();
+    } else {
+        QMessageBox::warning(this, "Error", "Could not save the update file to " + downloadPath);
+    }
+}
+

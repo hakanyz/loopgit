@@ -12,6 +12,8 @@ class QAction;
 class QComboBox;
 class RepoWidget;
 class QLabel;
+class QNetworkAccessManager;
+class QNetworkReply;
 
 class MainWindow : public QMainWindow
 {
@@ -33,6 +35,13 @@ private slots:
     void openCredentials();
     void showStatusMessage(const QString &msg);
     void showError(const QString &msg);
+
+    // Auto-update slots
+    void checkForUpdates(bool silent = false);
+    void onUpdateCheckFinished(QNetworkReply *reply, bool silent);
+    void onTrayMessageClicked();
+    void startUpdateDownload();
+    void onDownloadFinished(QNetworkReply *reply, const QString &downloadPath);
 
 private:
     void setupUi();
@@ -77,6 +86,11 @@ private:
     QSystemTrayIcon *m_trayIcon;
     QMenu *m_trayMenu;
     bool m_reallyQuit = false;
+
+    // Auto-update variables
+    QNetworkAccessManager *m_netManager;
+    QString m_latestUpdateVersion;
+    QString m_latestUpdateUrl;
 
 protected:
     void closeEvent(QCloseEvent *event) override;
