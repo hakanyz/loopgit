@@ -30,6 +30,8 @@
 #include <QTimer>
 #include <QSystemTrayIcon>
 #include <QCloseEvent>
+#include <QTableWidget>
+#include <QHeaderView>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -213,7 +215,9 @@ void MainWindow::setupMenuBar()
     fileMenu->addAction("Exit", this, &QWidget::close);
 
     QMenu *helpMenu = menuBar()->addMenu("Help");
-    helpMenu->addAction("About", this, &MainWindow::showAboutDialog);
+    helpMenu->addAction("Keyboard Shortcuts...", this, &MainWindow::showShortcutsDialog);
+    helpMenu->addSeparator();
+    helpMenu->addAction("About LoopGit", this, &MainWindow::showAboutDialog);
 }
 
 void MainWindow::setupToolBar()
@@ -245,14 +249,17 @@ void MainWindow::setupToolBar()
     // ── Group 2: Sync Operations ──
     m_actFetch = new QAction(QIcon(":/resources/icons/fetch.svg"), "Fetch", this);
     m_actFetch->setShortcut(QKeySequence("Ctrl+F"));
+    m_actFetch->setToolTip("Fetch from remote (Ctrl+F)");
     m_toolBar->addAction(m_actFetch);
 
     m_actPull = new QAction(QIcon(":/resources/icons/pull.svg"), "Pull", this);
     m_actPull->setShortcut(QKeySequence("Ctrl+Shift+P"));
+    m_actPull->setToolTip("Pull from remote (Ctrl+Shift+P)");
     m_toolBar->addAction(m_actPull);
 
     m_actPush = new QAction(QIcon(":/resources/icons/push.svg"), "Push", this);
     m_actPush->setShortcut(QKeySequence("Ctrl+P"));
+    m_actPush->setToolTip("Push to remote (Ctrl+P)");
     QMenu *pushMenu = new QMenu(this);
     QAction *actForcePush = pushMenu->addAction("Force Push (with lease)");
     connect(actForcePush, &QAction::triggered, this, [this]() {
@@ -266,6 +273,7 @@ void MainWindow::setupToolBar()
     m_toolBar->addAction(m_actPush);
 
     m_actRefresh = new QAction(QIcon(":/resources/icons/refresh.svg"), "Refresh", this);
+    m_actRefresh->setToolTip("Refresh repository status");
     m_toolBar->addAction(m_actRefresh);
 
     // ── Wide gap between Sync and Branch tools ──
@@ -704,9 +712,74 @@ void MainWindow::openCredentials()
 
 void MainWindow::showAboutDialog()
 {
-    QMessageBox::about(this, "About LoopGit",
-        "<h3>LoopGit v0.1</h3>"
-        "<p>A modern Git GUI client built with Qt and libgit2.</p>");
+    QMessageBox aboutBox(this);
+    aboutBox.setWindowTitle("About LoopGit");
+    aboutBox.setIconPixmap(windowIcon().pixmap(64, 64));
+    aboutBox.setTextFormat(Qt::RichText);
+    aboutBox.setText(
+        "<h2 style='margin-bottom:2px;'>LoopGit</h2>"
+        "<p style='color:#888; margin-top:0;'>Version 1.0.0-beta</p>"
+        "<p>A fast, modern Git GUI client built with <b>C++ / Qt6</b> and <b>libgit2</b>.</p>"
+        "<p>Designed to be a lightweight alternative to SmartGit and GitKraken.</p>"
+        "<hr>"
+        "<p><b>Author:</b> Hakan</p>"
+        "<p><a href='https://github.com/hakanyz/loopgit'>github.com/hakanyz/loopgit</a></p>"
+    );
+    aboutBox.exec();
+}
+
+void MainWindow::showShortcutsDialog()
+{
+    QDialog dlg(this);
+    dlg.setWindowTitle("Keyboard Shortcuts");
+    dlg.resize(480, 400);
+
+    QVBoxLayout *layout = new QVBoxLayout(&dlg);
+
+    QLabel *title = new QLabel("<h3>LoopGit Keyboard Shortcuts</h3>");
+    layout->addWidget(title);
+
+    QTableWidget *table = new QTableWidget;
+    table->setColumnCount(2);
+    table->setHorizontalHeaderLabels({"Shortcut", "Action"});
+    table->horizontalHeader()->setStretchLastSection(true);
+    table->setSelectionMode(QAbstractItemView::NoSelection);
+    table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    table->verticalHeader()->setVisible(false);
+    table->setStyleSheet("QTableWidget { background-color: #1E1E1E; color: #CCCCCC; }"
+                         "QHeaderView::section { background: #2D2D2D; color: #E0E0E0; padding: 6px; }");
+
+    QVector<QPair<QString, QString>> shortcuts = {
+        {"Ctrl+O",         "Open Repository"},
+        {"Ctrl+W",         "Close Current Tab"},
+        {"Ctrl+F",         "Fetch from Remote"},
+        {"Ctrl+P",         "Push to Remote"},
+        {"Ctrl+Shift+P",   "Pull from Remote"},
+        {"Ctrl+Shift+C",   "Focus Commit Message Box"},
+        {"Ctrl+Return",    "Commit (when message box is focused)"},
+    };
+
+    table->setRowCount(shortcuts.size());
+    for (int i = 0; i < shortcuts.size(); ++i) {
+        QTableWidgetItem *keyItem = new QTableWidgetItem(shortcuts[i].first);
+        keyItem->setFont(QFont("Consolas", 10));
+        keyItem->setForeground(QColor("#569CD6"));
+        table->setItem(i, 0, keyItem);
+        table->setItem(i, 1, new QTableWidgetItem(shortcuts[i].second));
+    }
+    table->resizeColumnsToContents();
+    table->setColumnWidth(0, 160);
+
+    layout->addWidget(table);
+
+    QPushButton *btnClose = new QPushButton("Close");
+    connect(btnClose, &QPushButton::clicked, &dlg, &QDialog::accept);
+    QHBoxLayout *btnLayout = new QHBoxLayout;
+    btnLayout->addStretch();
+    btnLayout->addWidget(btnClose);
+    layout->addLayout(btnLayout);
+
+    dlg.exec();
 }
 
 void MainWindow::showStatusMessage(const QString &msg)

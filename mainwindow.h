@@ -30,6 +30,7 @@ private slots:
     void updateBranchCombo();
     void onBranchComboActivated(int index);
     void showAboutDialog();
+    void showShortcutsDialog();
     void openCredentials();
     void showStatusMessage(const QString &msg);
     void showError(const QString &msg);
