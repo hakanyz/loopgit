@@ -2,5 +2,15 @@
 <RCC version="1.0">
     <qresource prefix="/">
         <file>resources/logo.png</file>
+        <file>resources/icons/local_files.svg</file>
+        <file>resources/icons/history.svg</file>
+        <file>resources/icons/submodule.svg</file>
+        <file>resources/icons/pull.svg</file>
+        <file>resources/icons/push.svg</file>
+        <file>resources/icons/stash.svg</file>
+        <file>resources/icons/pop.svg</file>
+        <file>resources/icons/cherry.svg</file>
+        <file>resources/icons/revert.svg</file>
+        <file>resources/icons/refresh.svg</file>
     </qresource>
 </RCC>

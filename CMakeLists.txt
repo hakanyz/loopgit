@@ -62,6 +62,8 @@ set(PROJECT_SOURCES
     main.cpp
     mainwindow.h
     mainwindow.cpp
+    repowidget.h
+    repowidget.cpp
     gitmanager.h
     gitmanager.cpp
     diffviewwidget.h
@@ -71,6 +73,7 @@ set(PROJECT_SOURCES
     commitgraphdelegate.h
     commitgraphdelegate.cpp
     resources.qrc
+    app.rc
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
