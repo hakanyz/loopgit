@@ -69,6 +69,7 @@ set(PROJECT_SOURCES
     commitgraphmodel.cpp
     commitgraphdelegate.h
     commitgraphdelegate.cpp
+    resources.qrc
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)

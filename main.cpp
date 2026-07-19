@@ -2,13 +2,15 @@
 #include "gitmanager.h"
 
 #include <QApplication>
+#include <QIcon>
 
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
-    app.setApplicationName(QStringLiteral("QtGitClient"));
+    app.setApplicationName(QStringLiteral("GitZen"));
     app.setApplicationVersion(QStringLiteral("0.1.0"));
-    app.setOrganizationName(QStringLiteral("QtGitClient"));
+    app.setOrganizationName(QStringLiteral("GitZen"));
+    app.setWindowIcon(QIcon(":/resources/logo.png"));
 
     // Initialize libgit2
     if (!GitManager::initialize()) {
