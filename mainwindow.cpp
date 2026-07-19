@@ -123,6 +123,10 @@ void MainWindow::setupMenuBar()
                                               this, &MainWindow::deleteBranch);
     m_actMergeBranch  = branchMenu->addAction(QStringLiteral("Merge Branch..."),
                                               this, &MainWindow::mergeBranch);
+
+    // Help
+    QMenu *helpMenu = mb->addMenu(QStringLiteral("&Help"));
+    helpMenu->addAction(QStringLiteral("About GitZen"), this, &MainWindow::showAboutDialog);
 }
 
 // ─── Tool Bar ──────────────────────────────────────────────────────
@@ -1414,4 +1418,19 @@ void MainWindow::showCommitContextMenu(const QPoint &pos)
             else QMessageBox::critical(this, "Error", m_git->lastError());
         }
     }
+}
+
+void MainWindow::showAboutDialog()
+{
+    QMessageBox aboutBox(this);
+    aboutBox.setWindowTitle(QStringLiteral("About GitZen"));
+    aboutBox.setIconPixmap(QPixmap(":/resources/logo.png").scaled(64, 64, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    aboutBox.setTextFormat(Qt::RichText);
+    aboutBox.setText(QStringLiteral(
+        "<h3>GitZen v0.1.0</h3>"
+        "<p>A fast, native, and zen-like Git GUI Client.</p>"
+        "<p>Built with <b>C++</b>, <b>Qt6</b>, and <b>libgit2</b>.</p>"
+        "<p><i>Built with a lot of coffee ☕ and ❤️ by Hakan.</i></p>"
+    ));
+    aboutBox.exec();
 }

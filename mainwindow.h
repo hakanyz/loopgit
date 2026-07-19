@@ -66,6 +66,7 @@ private slots:
 
     void cloneRepository();
     void openCredentials();
+    void showAboutDialog();
 
     // ── Commit Graph and Commit Diff ────────────────────
     void onCommitSelected(const QItemSelection &selected, const QItemSelection &deselected);
