@@ -68,6 +68,33 @@ void MainWindow::setupUi()
         }
     });
 
+    m_trayIcon = new QSystemTrayIcon(QIcon(":/icons/app_icon.ico"), this);
+    m_trayMenu = new QMenu(this);
+    
+    QAction *actShow = m_trayMenu->addAction("Show LoopGit");
+    connect(actShow, &QAction::triggered, this, [this]() {
+        showNormal();
+        activateWindow();
+    });
+    
+    m_trayMenu->addSeparator();
+    
+    QAction *actQuit = m_trayMenu->addAction("Quit LoopGit");
+    connect(actQuit, &QAction::triggered, this, [this]() {
+        m_reallyQuit = true;
+        close();
+    });
+    
+    m_trayIcon->setContextMenu(m_trayMenu);
+    m_trayIcon->show();
+
+    connect(m_trayIcon, &QSystemTrayIcon::activated, this, [this](QSystemTrayIcon::ActivationReason reason) {
+        if (reason == QSystemTrayIcon::DoubleClick || reason == QSystemTrayIcon::Trigger) {
+            showNormal();
+            activateWindow();
+        }
+    });
+
     connect(m_tabWidget, &QTabWidget::currentChanged, this, &MainWindow::onTabChanged);
 
     m_tabWidget->hide();
@@ -612,4 +639,16 @@ void MainWindow::showStatusMessage(const QString &msg)
 void MainWindow::showError(const QString &msg)
 {
     QMessageBox::critical(this, "Error", msg);
+}
+
+void MainWindow::closeEvent(QCloseEvent *event)
+{
+    if (!m_reallyQuit && m_trayIcon && m_trayIcon->isVisible()) {
+        QMessageBox::information(this, "LoopGit",
+            "The program will keep running in the system tray. To terminate the program, choose <b>Quit</b> in the context menu of the system tray entry.");
+        hide();
+        event->ignore();
+    } else {
+        event->accept();
+    }
 }

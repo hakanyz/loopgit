@@ -3,6 +3,8 @@
 
 #include <QMainWindow>
 #include <QMap>
+#include <QSystemTrayIcon>
+#include <QCloseEvent>
 
 class QTabWidget;
 class QToolBar;
@@ -69,6 +71,15 @@ private:
     QAction *m_actRelease;
     QAction *m_actHotfix;
     QAction *m_actFinish;
+
+    QMap<QString, QString> m_credentials;
+
+    QSystemTrayIcon *m_trayIcon;
+    QMenu *m_trayMenu;
+    bool m_reallyQuit = false;
+
+protected:
+    void closeEvent(QCloseEvent *event) override;
 };
 
 #endif // MAINWINDOW_H
