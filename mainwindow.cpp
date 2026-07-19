@@ -720,7 +720,7 @@ void MainWindow::showAboutDialog()
         "<h2 style='margin-bottom:2px;'>LoopGit</h2>"
         "<p style='color:#888; margin-top:0;'>Version 1.0.0-beta</p>"
         "<p>A fast, modern Git GUI client built with <b>C++ / Qt6</b> and <b>libgit2</b>.</p>"
-        "<p>Designed to be a lightweight alternative to SmartGit and GitKraken.</p>"
+        "<p>Built with ❤️ for developers who love speed and simplicity.</p>"
         "<hr>"
         "<p><b>Author:</b> Hakan</p>"
         "<p><a href='https://github.com/hakanyz/loopgit'>github.com/hakanyz/loopgit</a></p>"
