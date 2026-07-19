@@ -23,6 +23,7 @@
 #include <QPainter>
 #include <QTime>
 #include <QFrame>
+#include <QCheckBox>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -643,12 +644,49 @@ void MainWindow::showError(const QString &msg)
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    if (!m_reallyQuit && m_trayIcon && m_trayIcon->isVisible()) {
-        QMessageBox::information(this, "LoopGit",
-            "The program will keep running in the system tray. To terminate the program, choose <b>Quit</b> in the context menu of the system tray entry.");
+    if (m_reallyQuit || !m_trayIcon || !m_trayIcon->isVisible()) {
+        event->accept();
+        qApp->quit();
+        return;
+    }
+
+    QSettings settings;
+    QString closeAction = settings.value("app/closeAction", "").toString();
+    
+    if (closeAction == "tray") {
+        hide();
+        event->ignore();
+        return;
+    } else if (closeAction == "quit") {
+        event->accept();
+        qApp->quit();
+        return;
+    }
+
+    QMessageBox msgBox(this);
+    msgBox.setWindowTitle("LoopGit");
+    msgBox.setText("What do you want to do?");
+    msgBox.setInformativeText("You can minimize the application to the system tray or exit completely.");
+    
+    QPushButton *btnTray = msgBox.addButton("Minimize to Tray", QMessageBox::AcceptRole);
+    QPushButton *btnQuit = msgBox.addButton("Exit Application", QMessageBox::RejectRole);
+    
+    QCheckBox *cbRemember = new QCheckBox("Don't ask again");
+    msgBox.setCheckBox(cbRemember);
+
+    msgBox.exec();
+
+    if (msgBox.clickedButton() == btnTray) {
+        if (cbRemember->isChecked()) {
+            settings.setValue("app/closeAction", "tray");
+        }
         hide();
         event->ignore();
     } else {
+        if (cbRemember->isChecked()) {
+            settings.setValue("app/closeAction", "quit");
+        }
         event->accept();
+        qApp->quit();
     }
 }
