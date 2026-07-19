@@ -72,7 +72,6 @@ void MainWindow::setupUi()
             m_welcomeWidget->show();
             m_tabWidget->hide();
             m_toolBar->setEnabled(false);
-            m_branchCombo->setVisible(false);
             setWindowTitle("LoopGit");
         }
     });
@@ -310,16 +309,7 @@ void MainWindow::setupToolBar()
     m_actFinish = new QAction(QIcon(":/resources/icons/finish.svg"), "Finish", this);
     m_toolBar->addAction(m_actFinish);
 
-    // ── Gap before branch combo ──
-    QWidget *gap4 = new QWidget(this);
-    gap4->setFixedWidth(16);
-    gap4->setStyleSheet("background: transparent;");
-    m_toolBar->addWidget(gap4);
 
-    m_branchCombo = new QComboBox(this);
-    m_branchCombo->setMinimumWidth(120);
-    m_toolBar->addWidget(m_branchCombo);
-    m_branchCombo->setVisible(false);
 
     // ── Spacer pushes status label to far right ──
     QWidget *spacer = new QWidget(this);
@@ -353,8 +343,6 @@ void MainWindow::setupToolBar()
     connect(m_actRelease, &QAction::triggered, this, [this]() { if(auto rw = currentRepoWidget()) rw->startGitFlowBranch("release/"); });
     connect(m_actHotfix, &QAction::triggered, this, [this]() { if(auto rw = currentRepoWidget()) rw->startGitFlowBranch("hotfix/"); });
     connect(m_actFinish, &QAction::triggered, this, [this]() { if(auto rw = currentRepoWidget()) rw->finishGitFlowBranch(); });
-
-    connect(m_branchCombo, QOverload<int>::of(&QComboBox::activated), this, &MainWindow::onBranchComboActivated);
 
     m_toolBar->setEnabled(false);
 }
@@ -500,8 +488,9 @@ void MainWindow::applyDarkTheme()
             border: 1px solid #3C3C3C;
         }
         QStatusBar {
-            background-color: #007ACC;
-            color: #FFFFFF;
+            background-color: #2D2D2D;
+            color: #D4D4D4;
+            border-top: 1px solid #3C3C3C;
         }
         QLabel {
             color: #D4D4D4;
@@ -557,13 +546,9 @@ void MainWindow::openRepositoryPath(const QString &path)
     });
     connect(rw, &RepoWidget::errorOccurred, this, &MainWindow::showError);
     connect(rw, &RepoWidget::branchListChanged, this, [this](const QStringList &branches, const QString &currentBranch) {
+        Q_UNUSED(branches);
         if (currentRepoWidget() == sender()) {
-            m_updatingBranch = true;
-            m_branchCombo->clear();
-            m_branchCombo->addItems(branches);
-            m_branchCombo->setCurrentText(currentBranch);
-            m_updatingBranch = false;
-            m_syncStatusLabel->setText(currentBranch);
+            m_syncStatusLabel->setText(QString("Branch: %1").arg(currentBranch));
         }
     });
 
@@ -576,7 +561,6 @@ void MainWindow::openRepositoryPath(const QString &path)
     m_welcomeWidget->hide();
     m_tabWidget->show();
     m_toolBar->setEnabled(true);
-    m_branchCombo->setVisible(true);
     m_syncStatusLabel->setVisible(true);
 }
 
@@ -591,7 +575,6 @@ void MainWindow::closeCurrentRepository()
             m_welcomeWidget->show();
             m_tabWidget->hide();
             m_toolBar->setEnabled(false);
-            m_branchCombo->setVisible(false);
             m_syncStatusLabel->setVisible(false);
             setWindowTitle("LoopGit");
         }
@@ -668,18 +651,7 @@ void MainWindow::updateBranchCombo()
     // Triggered externally
 }
 
-void MainWindow::onBranchComboActivated(int index)
-{
-    if (m_updatingBranch) return;
-    QString branchName = m_branchCombo->itemText(index);
-    if (branchName.isEmpty()) return;
 
-    if (RepoWidget *rw = currentRepoWidget()) {
-        // Since git() is not accessible easily without making it public or adding a wrapper,
-        // we added checkoutBranch/fetch to RepoWidget directly if needed.
-        // For now, this is a placeholder.
-    }
-}
 
 void MainWindow::openCredentials()
 {
