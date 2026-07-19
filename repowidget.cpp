@@ -844,8 +844,11 @@ void RepoWidget::doStashPop()
 
 void RepoWidget::doPush(bool force)
 {
-    emit statusMessage("Pushing to origin...");
-    QCoreApplication::processEvents();
+    if (!m_git->isOpen()) return;
+    QProgressDialog progress("Pushing to remote...", "Cancel", 0, 0, this);
+    progress.setWindowModality(Qt::WindowModal);
+    progress.show();
+    QApplication::processEvents();
 
     if (m_git->push(QStringLiteral("origin"), force)) {
         emit statusMessage(QStringLiteral("Sync: Pushed at %1").arg(QTime::currentTime().toString("HH:mm:ss")));
