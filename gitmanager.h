@@ -151,13 +151,15 @@ public:
     QString getCommitDiff(const QString &commitId, const QString &filePath = QString());
     QVector<BlameLine> getBlame(const QString &filePath);
 
-    /* ── Branch management (Faz 4) ───────────────────── */
+    /* ── Branch & Tag management (Faz 4 & 5) ─────────── */
     QVector<BranchInfo> getBranches();
+    QVector<BranchInfo> getTags();
     bool createBranch(const QString &name);
     bool createBranchAt(const QString &name, const QString &commitId);
     bool checkoutBranch(const QString &name);
     bool mergeBranch(const QString &name);
     bool deleteBranch(const QString &name);
+    bool createTag(const QString &tagName, const QString &commitId, const QString &message = QString());
 
     /* ── Stash & Advanced (Faz 3) ────────────────────── */
     bool stashSave(const QString &message);

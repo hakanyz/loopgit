@@ -283,10 +283,17 @@ QVector<CommitInfo> GitManager::getLog(int maxCount)
     result.reserve(maxCount);
 
     QVector<BranchInfo> branches = getBranches();
+    QVector<BranchInfo> tags = getTags();
     QHash<QString, QStringList> commitToRefs;
+    
     for (const auto &b : branches) {
         if (!b.targetHash.isEmpty()) {
             commitToRefs[b.targetHash].append(b.name);
+        }
+    }
+    for (const auto &t : tags) {
+        if (!t.targetHash.isEmpty()) {
+            commitToRefs[t.targetHash].append(t.name);
         }
     }
 
@@ -1184,6 +1191,86 @@ QVector<BranchInfo> GitManager::getBranches()
     }
 
     return result;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  Faz 5 — Tags
+// ═══════════════════════════════════════════════════════════════════
+
+QVector<BranchInfo> GitManager::getTags()
+{
+    QVector<BranchInfo> result;
+    if (!ensureOpen()) return result;
+
+    git_strarray tag_names;
+    if (git_tag_list(&tag_names, m_repo) == 0) {
+        for (size_t i = 0; i < tag_names.count; ++i) {
+            const char *name = tag_names.strings[i];
+            
+            git_object *obj = nullptr;
+            if (git_revparse_single(&obj, m_repo, name) == 0) {
+                // If it's an annotated tag, we need to peel it to get the commit hash
+                git_object *peeled = nullptr;
+                git_object_peel(&peeled, obj, GIT_OBJECT_COMMIT);
+                
+                if (peeled) {
+                    char hashBuf[41] = {0};
+                    git_oid_tostr(hashBuf, sizeof(hashBuf), git_object_id(peeled));
+                    
+                    BranchInfo bi;
+                    bi.name = QString::fromUtf8(name);
+                    bi.isRemote = false;
+                    bi.isHead = false;
+                    bi.targetHash = QString::fromUtf8(hashBuf);
+                    
+                    result.append(bi);
+                    git_object_free(peeled);
+                }
+                git_object_free(obj);
+            }
+        }
+        git_strarray_dispose(&tag_names);
+    }
+    return result;
+}
+
+bool GitManager::createTag(const QString &tagName, const QString &commitId, const QString &message)
+{
+    if (!ensureOpen()) return false;
+
+    git_oid targetOid;
+    if (git_oid_fromstr(&targetOid, commitId.toUtf8().constData()) != 0) {
+        setError(QStringLiteral("Invalid commit hash"));
+        return false;
+    }
+
+    git_object *target = nullptr;
+    if (git_object_lookup(&target, m_repo, &targetOid, GIT_OBJECT_COMMIT) != 0) {
+        setError(QStringLiteral("Commit not found"));
+        return false;
+    }
+
+    git_oid new_tag_oid;
+    int err = 0;
+    
+    if (message.isEmpty()) {
+        err = git_tag_create_lightweight(&new_tag_oid, m_repo, tagName.toUtf8().constData(), target, 0);
+    } else {
+        git_signature *sig = nullptr;
+        git_signature_default(&sig, m_repo);
+        err = git_tag_create(&new_tag_oid, m_repo, tagName.toUtf8().constData(), target, sig, message.toUtf8().constData(), 0);
+        git_signature_free(sig);
+    }
+
+    git_object_free(target);
+
+    if (err != 0) {
+        const git_error *e = git_error_last();
+        setError(QStringLiteral("Failed to create tag: %1").arg(e ? e->message : "unknown"));
+        return false;
+    }
+
+    return true;
 }
 
 // ═══════════════════════════════════════════════════════════════════

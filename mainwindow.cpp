@@ -137,6 +137,36 @@ void MainWindow::setupWelcomeScreen()
     btnLayout->addWidget(btnClone);
 
     welcomeLayout->addLayout(btnLayout);
+    
+    welcomeLayout->addSpacing(30);
+
+    QSettings settings;
+    QStringList recentRepos = settings.value("app/recent_repos").toStringList();
+    
+    if (!recentRepos.isEmpty()) {
+        QLabel *recentLabel = new QLabel("Recent Repositories:");
+        recentLabel->setStyleSheet("font-weight: bold; font-size: 14px; color: #CCCCCC;");
+        recentLabel->setAlignment(Qt::AlignCenter);
+        welcomeLayout->addWidget(recentLabel);
+        
+        QVBoxLayout *recentLayout = new QVBoxLayout;
+        recentLayout->setAlignment(Qt::AlignCenter);
+        recentLayout->setSpacing(5);
+        
+        for (const QString &repo : recentRepos) {
+            QPushButton *btnRepo = new QPushButton(repo, this);
+            btnRepo->setStyleSheet("text-align: left; padding: 8px; background-color: #252526; border: 1px solid #3C3C3C; border-radius: 4px;");
+            btnRepo->setCursor(Qt::PointingHandCursor);
+            btnRepo->setMinimumWidth(400);
+            btnRepo->setMaximumWidth(600);
+            connect(btnRepo, &QPushButton::clicked, this, [this, repo]() {
+                openRepositoryPath(repo);
+            });
+            recentLayout->addWidget(btnRepo);
+        }
+        
+        welcomeLayout->addLayout(recentLayout);
+    }
 }
 
 void MainWindow::setupMenuBar()
@@ -465,6 +495,15 @@ void MainWindow::openRepositoryPath(const QString &path)
             return;
         }
     }
+
+    QSettings settings;
+    QStringList recentRepos = settings.value("app/recent_repos").toStringList();
+    recentRepos.removeAll(path);
+    recentRepos.prepend(path);
+    if (recentRepos.size() > 10) {
+        recentRepos = recentRepos.mid(0, 10);
+    }
+    settings.setValue("app/recent_repos", recentRepos);
 
     RepoWidget *rw = new RepoWidget(path, this);
     connect(rw, &RepoWidget::statusMessage, this, [this](const QString &msg) {

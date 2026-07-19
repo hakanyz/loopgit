@@ -57,6 +57,12 @@ RepoWidget::RepoWidget(const QString &repoPath, QWidget *parent)
     } else {
         emit statusMessage(QStringLiteral("Failed to open repository: %1").arg(m_git->lastError()));
     }
+    
+    QSettings settings;
+    QString draft = settings.value(QString("drafts/%1").arg(m_repoPath), "").toString();
+    if (!draft.isEmpty()) {
+        m_commitEdit->setPlainText(draft);
+    }
 }
 
 RepoWidget::~RepoWidget() = default;
@@ -272,6 +278,13 @@ void RepoWidget::switchPerspective(int index)
 
 void RepoWidget::connectSignals()
 {
+    connect(m_commitEdit, &QTextEdit::textChanged, this, [this]() {
+        if (!m_repoPath.isEmpty()) {
+            QSettings settings;
+            settings.setValue(QString("drafts/%1").arg(m_repoPath), m_commitEdit->toPlainText());
+        }
+    });
+
     m_localChangesTree->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(m_localChangesTree, &QTreeWidget::customContextMenuRequested, this, &RepoWidget::showLocalFilesContextMenu);
 
@@ -700,6 +713,9 @@ void RepoWidget::doCommit()
 
     if (m_git->commit(msg, amend)) {
         m_commitEdit->clear();
+        QSettings settings;
+        settings.remove(QString("drafts/%1").arg(m_repoPath));
+        
         m_amendCheck->setChecked(false);
         refreshAll();
         emit statusMessage(amend ? QStringLiteral("Amend commit successful!") : QStringLiteral("Commit successful!"));
@@ -1233,9 +1249,11 @@ void RepoWidget::showHistoryContextMenu(const QPoint &pos)
     }
 
     QAction *actCherryPick = nullptr;
+    QAction *actCreateTag = nullptr;
     if (selection.size() == 1) {
         menu.addSeparator();
         actCherryPick = menu.addAction(QStringLiteral("Cherry-pick this commit"));
+        actCreateTag = menu.addAction(QStringLiteral("Create Tag here"));
     }
 
     if (menu.isEmpty()) return;
@@ -1294,6 +1312,21 @@ void RepoWidget::showHistoryContextMenu(const QPoint &pos)
         {
             if (m_git->cherryPick(gc.commit.id)) {
                 QMessageBox::information(this, "Success", "Cherry-pick successful. The changes are now in your working directory/index. You can commit them from the Local Files view.");
+                refreshAll();
+            } else {
+                QMessageBox::critical(this, "Error", m_git->lastError());
+            }
+        }
+    } else if (res == actCreateTag) {
+        QVariant data = m_logModel->data(selection[0], CommitGraphModel::GraphNodeRole);
+        GraphCommit gc = data.value<GraphCommit>();
+        
+        bool ok;
+        QString tagName = QInputDialog::getText(this, "Create Tag",
+                                                "Enter tag name (e.g. v1.0.0):",
+                                                QLineEdit::Normal, "", &ok);
+        if (ok && !tagName.isEmpty()) {
+            if (m_git->createTag(tagName, gc.commit.id)) {
                 refreshAll();
             } else {
                 QMessageBox::critical(this, "Error", m_git->lastError());
