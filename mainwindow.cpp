@@ -71,6 +71,7 @@ void MainWindow::setupUi()
 #include <QFormLayout>
 #include <QDialogButtonBox>
 #include <QProgressDialog>
+#include <QDateTime>
 
 // ─── Menu Bar ──────────────────────────────────────────────────────
 
@@ -424,7 +425,11 @@ void MainWindow::switchPerspective(int index)
 void MainWindow::setupStatusBar()
 {
     m_statusLabel = new QLabel(QStringLiteral("No repository open"));
-    statusBar()->addPermanentWidget(m_statusLabel, 1);
+    m_syncStatusLabel = new QLabel(QStringLiteral("☁️ Offline"));
+    m_syncStatusLabel->setStyleSheet(QStringLiteral("color: #888888; margin-right: 10px;"));
+    
+    statusBar()->addWidget(m_statusLabel, 1);
+    statusBar()->addPermanentWidget(m_syncStatusLabel, 0);
 }
 
 // ─── Connections ───────────────────────────────────────────────────
@@ -489,6 +494,7 @@ void MainWindow::connectSignals()
             this, [this](const QString &path) {
                 setWindowTitle(QStringLiteral("GitZen — %1").arg(path));
                 setRepoActionsEnabled(true);
+                m_syncStatusLabel->setText(QStringLiteral("☁️ Ready"));
                 
                 m_dirModel->setRootPath(path);
                 m_dirTree->setRootIndex(m_dirModel->index(path));
@@ -507,6 +513,7 @@ void MainWindow::connectSignals()
             this, [this]() {
                 setWindowTitle(QStringLiteral("GitZen"));
                 setRepoActionsEnabled(false);
+                m_syncStatusLabel->setText(QStringLiteral("☁️ Offline"));
                 
                 m_dirModel->setRootPath(QString());
                 m_stagedRoot->takeChildren();
@@ -1034,6 +1041,7 @@ void MainWindow::doPush()
     QApplication::processEvents();
 
     if (m_git->push()) {
+        m_syncStatusLabel->setText(QStringLiteral("☁️ Pushed at %1").arg(QTime::currentTime().toString("HH:mm:ss")));
         QMessageBox::information(this, "Success", "Successfully pushed to remote.");
         refreshAll();
     } else {
@@ -1050,6 +1058,7 @@ void MainWindow::doPull()
     QApplication::processEvents();
 
     if (m_git->pull()) {
+        m_syncStatusLabel->setText(QStringLiteral("☁️ Pulled at %1").arg(QTime::currentTime().toString("HH:mm:ss")));
         QMessageBox::information(this, "Success", "Successfully pulled from remote.");
         refreshAll();
     } else {
@@ -1066,6 +1075,7 @@ void MainWindow::doFetch()
     QApplication::processEvents();
 
     if (m_git->fetch()) {
+        m_syncStatusLabel->setText(QStringLiteral("☁️ Fetched at %1").arg(QTime::currentTime().toString("HH:mm:ss")));
         QMessageBox::information(this, "Success", "Successfully fetched from remote.");
         refreshAll();
     } else {

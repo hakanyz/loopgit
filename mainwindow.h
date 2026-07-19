@@ -123,6 +123,7 @@ private:
     QTextEdit      *m_commitEdit;
     QPushButton    *m_commitBtn;
     QLabel         *m_statusLabel;
+    QLabel         *m_syncStatusLabel;
     QToolBar       *m_toolBar;
     QSplitter      *m_mainSplitter;
     QSplitter      *m_leftSplitter;
