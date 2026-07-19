@@ -57,6 +57,10 @@ private slots:
     // ── Commit ──────────────────────────────────────────
     void doCommit();
 
+    // ── Stash ───────────────────────────────────────────
+    void doStashSave();
+    void doStashPop();
+
     // ── Branch ──────────────────────────────────────────
     void onBranchItemDoubleClicked(QTreeWidgetItem *item, int column);
     void createBranch();
@@ -69,6 +73,7 @@ private slots:
     void showCommitContextMenu(const QPoint &pos);
     void showBranchContextMenu(const QPoint &pos);
     void showLocalFilesContextMenu(const QPoint &pos);
+    void showDirTreeContextMenu(const QPoint &pos);
 
     // ── Misc ────────────────────────────────────────────
     void onRepoChanged(const QString &path);

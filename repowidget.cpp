@@ -98,11 +98,16 @@ void RepoWidget::setupCentralWidget() {
     QPushButton *unstageBtn = new QPushButton(QString::fromUtf8("\xe2\x96\xbc Unstage"));
     QPushButton *stageAllBtn   = new QPushButton(QString::fromUtf8("\xe2\x96\xb2\xe2\x96\xb2 Stage All"));
     QPushButton *unstageAllBtn = new QPushButton(QString::fromUtf8("\xe2\x96\xbc\xe2\x96\xbc Unstage All"));
+    
+    QPushButton *stashBtn = new QPushButton("Stash");
+    QPushButton *stashPopBtn = new QPushButton("Pop Stash");
 
     connect(stageBtn,      &QPushButton::clicked, this, &RepoWidget::stageSelected);
     connect(unstageBtn,    &QPushButton::clicked, this, &RepoWidget::unstageSelected);
     connect(stageAllBtn,   &QPushButton::clicked, this, &RepoWidget::stageAll);
     connect(unstageAllBtn, &QPushButton::clicked, this, &RepoWidget::unstageAll);
+    connect(stashBtn,      &QPushButton::clicked, this, &RepoWidget::doStashSave);
+    connect(stashPopBtn,   &QPushButton::clicked, this, &RepoWidget::doStashPop);
 
     QHBoxLayout *stageBtnLayout = new QHBoxLayout;
     stageBtnLayout->setContentsMargins(0, 0, 0, 0);
@@ -110,6 +115,9 @@ void RepoWidget::setupCentralWidget() {
     stageBtnLayout->addWidget(unstageBtn);
     stageBtnLayout->addWidget(stageAllBtn);
     stageBtnLayout->addWidget(unstageAllBtn);
+    stageBtnLayout->addStretch();
+    stageBtnLayout->addWidget(stashBtn);
+    stageBtnLayout->addWidget(stashPopBtn);
 
     // ── Left side: file changes tree + stage buttons ──
     QWidget *fileChangesWidget = new QWidget;
@@ -259,6 +267,9 @@ void RepoWidget::connectSignals()
 {
     m_localChangesTree->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(m_localChangesTree, &QTreeWidget::customContextMenuRequested, this, &RepoWidget::showLocalFilesContextMenu);
+
+    m_dirTree->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(m_dirTree, &QTreeView::customContextMenuRequested, this, &RepoWidget::showDirTreeContextMenu);
 
     connect(m_localChangesTree, &QTreeWidget::itemDoubleClicked,
             this, &RepoWidget::onFileItemDoubleClicked);
@@ -604,9 +615,9 @@ void RepoWidget::onFileItemDoubleClicked(QTreeWidgetItem *item, int /*column*/)
     refreshAll();
 }
 
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ═══════════════════════════════════════════════════════════════════
 //  Stage / Unstage
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ═══════════════════════════════════════════════════════════════════
 
 void RepoWidget::stageSelected()
 {
@@ -669,6 +680,38 @@ void RepoWidget::doCommit()
         
         if (m_pushAfterCommitCheck->isChecked()) {
             doPush();
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  Stash
+// ═══════════════════════════════════════════════════════════════════
+
+void RepoWidget::doStashSave()
+{
+    bool ok;
+    QString msg = QInputDialog::getText(this, "Stash Changes", 
+        "Enter stash message (optional):", QLineEdit::Normal, "", &ok);
+        
+    if (!ok) return;
+
+    if (m_git->stashSave(msg)) {
+        refreshAll();
+        QMessageBox::information(this, "Stash", "Changes have been stashed successfully.");
+    } else {
+        QMessageBox::critical(this, "Error", m_git->lastError());
+    }
+}
+
+void RepoWidget::doStashPop()
+{
+    if (QMessageBox::question(this, "Pop Stash", "Pop the latest stash?") == QMessageBox::Yes) {
+        if (m_git->stashPop()) {
+            refreshAll();
+            QMessageBox::information(this, "Pop Stash", "Stash popped successfully.");
+        } else {
+            QMessageBox::critical(this, "Error", m_git->lastError());
         }
     }
 }
@@ -1030,6 +1073,56 @@ void RepoWidget::showCommitContextMenu(const QPoint &pos)
         if (QMessageBox::question(this, "Revert", QStringLiteral("Revert commit %1?").arg(commitId.left(7))) == QMessageBox::Yes) {
             if (m_git->revertCommit(commitId)) refreshAll();
             else QMessageBox::critical(this, "Error", m_git->lastError());
+        }
+    }
+}
+
+void RepoWidget::showDirTreeContextMenu(const QPoint &pos)
+{
+    QModelIndex index = m_dirTree->indexAt(pos);
+    if (!index.isValid()) return;
+
+    QString absPath = m_dirModel->filePath(index);
+    if (absPath.isEmpty()) return;
+
+    QString repoPath = m_git->repoPath();
+    QString relPath = QDir(repoPath).relativeFilePath(absPath);
+
+    QMenu menu(this);
+    
+    QFileInfo fi(absPath);
+    bool isDir = fi.isDir();
+    QString fileName = fi.fileName();
+    QString ext = fi.suffix();
+
+    QAction *actIgnoreExact = menu.addAction(QStringLiteral("Ignore exact file (%1)").arg(fileName));
+    QAction *actIgnoreExt = nullptr;
+    if (!isDir && !ext.isEmpty()) {
+        actIgnoreExt = menu.addAction(QStringLiteral("Ignore all .%1 files").arg(ext));
+    }
+    QAction *actIgnoreFolder = nullptr;
+    if (isDir) {
+        actIgnoreFolder = menu.addAction(QStringLiteral("Ignore folder (%1/)").arg(fileName));
+    }
+
+    menu.addSeparator();
+    QAction *actOpenDir = menu.addAction(QStringLiteral("Open in Explorer"));
+
+    QAction *res = menu.exec(m_dirTree->viewport()->mapToGlobal(pos));
+    
+    QString ignoreStr;
+    if (res == actIgnoreExact) ignoreStr = relPath;
+    else if (res && res == actIgnoreExt) ignoreStr = "*." + ext;
+    else if (res && res == actIgnoreFolder) ignoreStr = relPath + "/";
+
+    if (!ignoreStr.isEmpty()) {
+        if (m_git->addToGitignore(ignoreStr)) refreshAll();
+        else QMessageBox::critical(this, "Error", m_git->lastError());
+    } else if (res == actOpenDir) {
+        if (isDir) {
+            QDesktopServices::openUrl(QUrl::fromLocalFile(absPath));
+        } else {
+            QDesktopServices::openUrl(QUrl::fromLocalFile(fi.absolutePath()));
         }
     }
 }
