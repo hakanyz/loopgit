@@ -139,9 +139,11 @@ void MainWindow::setupToolBar()
     m_toolBar->setToolButtonStyle(Qt::ToolButtonTextOnly);
     m_toolBar->setStyleSheet(QStringLiteral(
         "QToolBar { padding: 5px; border-bottom: 1px solid #333; }"
-        "QToolButton { margin: 0 2px; padding: 4px 8px; font-size: 13px; border-radius: 4px; }"
-        "QToolButton:hover { background-color: #2D2D2D; }"
-        "QComboBox { margin: 0 10px; padding: 4px; border: 1px solid #555; border-radius: 4px; min-width: 150px; }"
+        "QToolButton { margin: 0 3px; padding: 5px 12px; font-size: 13px; border-radius: 4px; background-color: #2D2D2D; border: 1px solid #3C3C3C; font-weight: bold; }"
+        "QToolButton:hover { background-color: #3C3C3C; border: 1px solid #555555; }"
+        "QToolButton:checked { background-color: #094771; border: 1px solid #007ACC; color: white; }"
+        "QComboBox { margin: 0 10px; padding: 4px; border: 1px solid #555; border-radius: 4px; min-width: 150px; background-color: #2D2D2D; }"
+        "QComboBox:hover { border: 1px solid #007ACC; }"
     ));
 
     m_actLocalFiles = new QAction(QStringLiteral("Local Files"), this);
@@ -509,14 +511,14 @@ void MainWindow::connectSignals()
 
     connect(m_git, &GitManager::repositoryOpened,
             this, [this](const QString &path) {
-                setWindowTitle(QStringLiteral("GitZen — %1").arg(path));
+                setWindowTitle(QStringLiteral("LoopGit — %1").arg(path));
                 setRepoActionsEnabled(true);
                 m_syncStatusLabel->setText(QStringLiteral("Sync: Ready"));
                 
                 m_dirModel->setRootPath(path);
                 m_dirTree->setRootIndex(m_dirModel->index(path));
 
-                QSettings settings("MyCompany", "GitZen");
+                QSettings settings("MyCompany", "LoopGit");
                 QString user = settings.value("github/username", "").toString();
                 QString token = settings.value("github/token", "").toString();
                 m_git->setCredentials(user, token);
@@ -528,7 +530,7 @@ void MainWindow::connectSignals()
 
     connect(m_git, &GitManager::repositoryClosed,
             this, [this]() {
-                setWindowTitle(QStringLiteral("GitZen"));
+                setWindowTitle(QStringLiteral("LoopGit"));
                 setRepoActionsEnabled(false);
                 m_syncStatusLabel->setText(QStringLiteral("Sync: Offline"));
                 
