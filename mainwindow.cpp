@@ -20,10 +20,16 @@
 #include <QPushButton>
 #include <QDialogButtonBox>
 #include <QDialog>
+#include "settingsdialog.h"
+#include "reflogdialog.h"
+#include <QScrollArea>
 #include <QPainter>
 #include <QTime>
 #include <QFrame>
 #include <QCheckBox>
+#include <QTimer>
+#include <QSystemTrayIcon>
+#include <QCloseEvent>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -184,6 +190,25 @@ void MainWindow::setupMenuBar()
     fileMenu->addSeparator();
     m_actCredentials = fileMenu->addAction("Credentials...", this, &MainWindow::openCredentials);
     
+    QAction *actSettings = fileMenu->addAction("Settings...", this, [this]() {
+        if (auto rw = currentRepoWidget()) {
+            SettingsDialog dlg(rw->gitManager(), this);
+            dlg.exec();
+            rw->refreshAll();
+        } else {
+            QMessageBox::information(this, "Settings", "Please open a repository to manage its settings.");
+        }
+    });
+
+    QAction *actReflog = fileMenu->addAction("Show Reflog...", this, [this]() {
+        if (auto rw = currentRepoWidget()) {
+            ReflogDialog dlg(rw->gitManager(), this);
+            dlg.exec();
+        } else {
+            QMessageBox::information(this, "Reflog", "Please open a repository to view its reflog.");
+        }
+    });
+    
     fileMenu->addSeparator();
     fileMenu->addAction("Exit", this, &QWidget::close);
 
@@ -218,13 +243,26 @@ void MainWindow::setupToolBar()
     m_toolBar->addWidget(gap1);
 
     // ── Group 2: Sync Operations ──
-    m_actFetch = new QAction(QIcon(":/resources/icons/refresh.svg"), "Fetch", this);
+    m_actFetch = new QAction(QIcon(":/resources/icons/fetch.svg"), "Fetch", this);
+    m_actFetch->setShortcut(QKeySequence("Ctrl+F"));
     m_toolBar->addAction(m_actFetch);
 
     m_actPull = new QAction(QIcon(":/resources/icons/pull.svg"), "Pull", this);
+    m_actPull->setShortcut(QKeySequence("Ctrl+Shift+P"));
     m_toolBar->addAction(m_actPull);
 
     m_actPush = new QAction(QIcon(":/resources/icons/push.svg"), "Push", this);
+    m_actPush->setShortcut(QKeySequence("Ctrl+P"));
+    QMenu *pushMenu = new QMenu(this);
+    QAction *actForcePush = pushMenu->addAction("Force Push (with lease)");
+    connect(actForcePush, &QAction::triggered, this, [this]() {
+        if (auto rw = currentRepoWidget()) {
+            if (QMessageBox::warning(this, "Force Push", "Are you sure you want to force push? This may overwrite remote history.", QMessageBox::Yes | QMessageBox::No) == QMessageBox::Yes) {
+                rw->doPush(true);
+            }
+        }
+    });
+    m_actPush->setMenu(pushMenu);
     m_toolBar->addAction(m_actPush);
 
     m_actRefresh = new QAction(QIcon(":/resources/icons/refresh.svg"), "Refresh", this);

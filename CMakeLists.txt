@@ -76,6 +76,10 @@ set(PROJECT_SOURCES
     commitgraphdelegate.cpp
     blamedialog.h
     blamedialog.cpp
+    conflictresolverdialog.cpp
+    settingsdialog.cpp
+    reflogdialog.cpp
+    comparedialog.cpp
     resources.qrc
     app.rc
 )

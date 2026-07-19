@@ -30,15 +30,19 @@
 #include <QFileInfo>
 #include <QDesktopServices>
 #include <QUrl>
+#include <QShortcut>
 #include <QInputDialog>
 #include <QFileSystemWatcher>
 #include <QHeaderView>
+#include <QSortFilterProxyModel>
 #include "blamedialog.h"
+#include "conflictresolverdialog.h"
+#include "comparedialog.h"
 #include <QDir>
 #include <QTimer>
 #include <QCheckBox>
 
-// â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• 
+// ═════════════════════════════════════════════════════════════════════════════════
 //  Construction / Destruction
 // âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
@@ -152,6 +156,12 @@ void RepoWidget::setupCentralWidget() {
     m_commitBtn = new QPushButton(QString::fromUtf8("\xe2\x9c\x93 Commit"));
     m_commitBtn->setMinimumHeight(36);
     m_commitBtn->setStyleSheet("font-weight: bold; font-size: 14px;");
+    m_commitBtn->setShortcut(QKeySequence("Ctrl+Return"));
+
+    QShortcut *focusCommitShortcut = new QShortcut(QKeySequence("Ctrl+Shift+C"), this);
+    connect(focusCommitShortcut, &QShortcut::activated, this, [this]() {
+        m_commitEdit->setFocus();
+    });
 
     QVBoxLayout *commitPanelLayout = new QVBoxLayout;
     commitPanelLayout->setContentsMargins(6, 6, 6, 6);
@@ -192,11 +202,30 @@ void RepoWidget::setupCentralWidget() {
     m_branchesTree->setHeaderHidden(true);
     m_branchesTree->setRootIsDecorated(true);
     m_branchesTree->setAlternatingRowColors(true);
-    m_branchesTree->setContextMenuPolicy(Qt::CustomContextMenu);
+    m_logModel    = new CommitGraphModel(this);
+    m_logProxyModel = new QSortFilterProxyModel(this);
+    m_logProxyModel->setSourceModel(m_logModel);
+    m_logProxyModel->setFilterCaseSensitivity(Qt::CaseInsensitive);
+    m_logProxyModel->setFilterKeyColumn(-1); // filter on all columns
+    m_logDelegate = new CommitGraphDelegate(this);
 
     m_logTable = new QTableView;
-    m_logTable->setModel(m_logModel);
+    m_logTable->setModel(m_logProxyModel);
     m_logTable->setItemDelegate(m_logDelegate);
+
+    m_commitSearchFilter = new QLineEdit;
+    m_commitSearchFilter->setPlaceholderText("Search commits (Hash, Message, Author)...");
+    m_commitSearchFilter->setClearButtonEnabled(true);
+    m_commitSearchFilter->setStyleSheet("QLineEdit { padding: 4px; background-color: #1E1E1E; border: 1px solid #3C3C3C; }");
+    
+    connect(m_commitSearchFilter, &QLineEdit::textChanged, m_logProxyModel, &QSortFilterProxyModel::setFilterFixedString);
+
+    QWidget *logWidget = new QWidget;
+    QVBoxLayout *logLayout = new QVBoxLayout(logWidget);
+    logLayout->setContentsMargins(0, 0, 0, 0);
+    logLayout->setSpacing(0);
+    logLayout->addWidget(m_commitSearchFilter);
+    logLayout->addWidget(m_logTable);
     m_logTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_logTable->setSelectionMode(QAbstractItemView::ExtendedSelection);
     m_logTable->setContextMenuPolicy(Qt::CustomContextMenu);
@@ -249,9 +278,11 @@ void RepoWidget::setupCentralWidget() {
     hrLayout->addWidget(m_historyFileFilter);
     hrLayout->addWidget(m_historyFilesTree);
 
+    m_branchesTree->setContextMenuPolicy(Qt::CustomContextMenu);
+
     QSplitter *historyTopSplitter = new QSplitter(Qt::Horizontal);
     historyTopSplitter->addWidget(m_branchesTree);
-    historyTopSplitter->addWidget(m_logTable);
+    historyTopSplitter->addWidget(logWidget);
     historyTopSplitter->addWidget(historyRightWidget);
     historyTopSplitter->setStretchFactor(0, 2);
     historyTopSplitter->setStretchFactor(1, 6);
@@ -537,8 +568,20 @@ void RepoWidget::updateBranchesTree()
     for (const auto &bi : branches) {
         QTreeWidgetItem *item = new QTreeWidgetItem;
         QString display = bi.name;
+        
+        if (!bi.isRemote) {
+            auto ab = m_git->getAheadBehind(bi.name);
+            if (ab.first > 0 || ab.second > 0) {
+                display += QString(" [");
+                if (ab.first > 0) display += QString("↑%1").arg(ab.first);
+                if (ab.first > 0 && ab.second > 0) display += " ";
+                if (ab.second > 0) display += QString("↓%1").arg(ab.second);
+                display += "]";
+            }
+        }
+
         if (bi.isHead) {
-            display = QStringLiteral("? %1").arg(bi.name);
+            display = QStringLiteral("★ %1").arg(display);
             item->setData(0, Qt::FontRole, QFont(m_branchesTree->font().family(), -1, QFont::Bold));
         }
         item->setText(0, display);
@@ -576,7 +619,9 @@ void RepoWidget::onCommitSelected(const QItemSelection &selected, const QItemSel
         return;
     }
 
-    int row = selected.indexes().first().row();
+    QModelIndex proxyIndex = selected.indexes().first();
+    QModelIndex sourceIndex = m_logProxyModel->mapToSource(proxyIndex);
+    int row = sourceIndex.row();
     QModelIndex hashIndex = m_logModel->index(row, CommitGraphModel::ColHash);
     m_selectedCommitId = m_logModel->data(hashIndex, Qt::UserRole).toString();
 
@@ -656,11 +701,22 @@ void RepoWidget::onCommitFileClicked(QTreeWidgetItem *item, int /*column*/)
 
 void RepoWidget::onFileItemDoubleClicked(QTreeWidgetItem *item, int /*column*/)
 {
-    if (!item || item == m_stagedRoot || item == m_unstagedRoot)
+    if (!item || item == m_stagedRoot || item == m_unstagedRoot || item == m_conflictedRoot)
         return;
 
-    QString path    = item->data(0, Qt::UserRole).toString();
-    bool    isStaged = item->data(0, Qt::UserRole + 1).toBool();
+    QString path = item->data(0, Qt::UserRole).toString();
+
+    if (item->parent() == m_conflictedRoot) {
+        ConflictResolverDialog dlg(m_repoPath, path, this);
+        connect(&dlg, &ConflictResolverDialog::resolved, this, [this, path]() {
+            m_git->stageFile(path);
+            refreshAll();
+        });
+        dlg.exec();
+        return;
+    }
+
+    bool isStaged = item->data(0, Qt::UserRole + 1).toBool();
 
     if (isStaged) {
         m_git->unstageFile(path);
@@ -777,16 +833,14 @@ void RepoWidget::doStashPop()
 // âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 //  Push / Pull
 // âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• 
 
-void RepoWidget::doPush()
+void RepoWidget::doPush(bool force)
 {
-    if (!m_git->isOpen()) return;
-    QProgressDialog progress("Pushing to remote...", "Cancel", 0, 0, this);
-    progress.setWindowModality(Qt::WindowModal);
-    progress.show();
-    QApplication::processEvents();
+    emit statusMessage("Pushing to origin...");
+    QCoreApplication::processEvents();
 
-    if (m_git->push()) {
+    if (m_git->push(QStringLiteral("origin"), force)) {
         emit statusMessage(QStringLiteral("Sync: Pushed at %1").arg(QTime::currentTime().toString("HH:mm:ss")));
         QMessageBox::information(this, "Success", "Successfully pushed to remote.");
         refreshAll();
@@ -1053,11 +1107,14 @@ void RepoWidget::showLocalFilesContextMenu(const QPoint &pos)
 
     QMenu menu(this);
     
+    QAction *actOpenResolver = nullptr;
     QAction *actResolveOurs = nullptr;
     QAction *actResolveTheirs = nullptr;
     QAction *actMarkResolved = nullptr;
     
     if (isConflicted) {
+        actOpenResolver = menu.addAction(QStringLiteral("Open Conflict Resolver..."));
+        menu.addSeparator();
         actResolveOurs = menu.addAction(QStringLiteral("Resolve using 'Ours'"));
         actResolveTheirs = menu.addAction(QStringLiteral("Resolve using 'Theirs'"));
         menu.addSeparator();
@@ -1091,7 +1148,14 @@ void RepoWidget::showLocalFilesContextMenu(const QPoint &pos)
     
     if (!res) return;
 
-    if (res == actResolveOurs) {
+    if (res == actOpenResolver) {
+        ConflictResolverDialog dlg(m_repoPath, path, this);
+        connect(&dlg, &ConflictResolverDialog::resolved, this, [this, path]() {
+            m_git->stageFile(path);
+            refreshAll();
+        });
+        dlg.exec();
+    } else if (res == actResolveOurs) {
         if (m_git->resolveUsingOurs(path)) refreshAll();
         else QMessageBox::critical(this, "Error", m_git->lastError());
     } else if (res == actResolveTheirs) {
@@ -1133,7 +1197,8 @@ void RepoWidget::showCommitContextMenu(const QPoint &pos)
     QModelIndex index = m_logTable->indexAt(pos);
     if (!index.isValid()) return;
 
-    int row = index.row();
+    QModelIndex sourceIndex = m_logProxyModel->mapToSource(index);
+    int row = sourceIndex.row();
     QModelIndex hashIndex = m_logModel->index(row, CommitGraphModel::ColHash);
     QString commitId = m_logModel->data(hashIndex, Qt::UserRole).toString();
     
@@ -1237,8 +1302,13 @@ void RepoWidget::showDirTreeContextMenu(const QPoint &pos)
 
 void RepoWidget::showHistoryContextMenu(const QPoint &pos)
 {
-    QModelIndexList selection = m_logTable->selectionModel()->selectedRows();
-    if (selection.isEmpty()) return;
+    QModelIndexList proxySelection = m_logTable->selectionModel()->selectedRows();
+    if (proxySelection.isEmpty()) return;
+
+    QModelIndexList selection;
+    for (const QModelIndex &idx : proxySelection) {
+        selection.append(m_logProxyModel->mapToSource(idx));
+    }
 
     std::sort(selection.begin(), selection.end(), [](const QModelIndex &a, const QModelIndex &b) {
         return a.row() < b.row();
@@ -1266,10 +1336,15 @@ void RepoWidget::showHistoryContextMenu(const QPoint &pos)
 
     QAction *actCherryPick = nullptr;
     QAction *actCreateTag = nullptr;
+    QAction *actCompare = nullptr;
+
     if (selection.size() == 1) {
         menu.addSeparator();
         actCherryPick = menu.addAction(QStringLiteral("Cherry-pick this commit"));
         actCreateTag = menu.addAction(QStringLiteral("Create Tag here"));
+    } else if (selection.size() == 2) {
+        menu.addSeparator();
+        actCompare = menu.addAction(QStringLiteral("Compare Selected Commits"));
     }
 
     if (menu.isEmpty()) return;
@@ -1348,5 +1423,13 @@ void RepoWidget::showHistoryContextMenu(const QPoint &pos)
                 QMessageBox::critical(this, "Error", m_git->lastError());
             }
         }
+    } else if (res == actCompare) {
+        QVariant data1 = m_logModel->data(selection[0], CommitGraphModel::GraphNodeRole);
+        QVariant data2 = m_logModel->data(selection[1], CommitGraphModel::GraphNodeRole);
+        GraphCommit gc1 = data1.value<GraphCommit>();
+        GraphCommit gc2 = data2.value<GraphCommit>();
+        
+        CompareDialog dlg(m_git, gc1.commit.id, gc2.commit.id, this);
+        dlg.exec();
     }
 }

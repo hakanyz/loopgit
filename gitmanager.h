@@ -103,6 +103,8 @@ public:
     static bool  initialize();
     static void  shutdown();
 
+    QPair<int, int> getAheadBehind(const QString &localBranch);
+
     /* ── Repository (Faz 0) ──────────────────────────── */
     bool    openRepository(const QString &path);
     void    closeRepository();
@@ -134,9 +136,27 @@ public:
     bool revertCommit(const QString &commitId);
 
     /* ── Push / Pull / Fetch (Faz 2 & 6) ─────────────── */
-    bool push(const QString &remoteName = QStringLiteral("origin"));
+    bool push(const QString &remoteName = QStringLiteral("origin"), bool force = false);
     bool pull(const QString &remoteName = QStringLiteral("origin"));
     bool fetch(const QString &remoteName = QStringLiteral("origin"));
+
+    // Config & Remotes
+    QString getConfigValue(const QString &key);
+    bool setConfigValue(const QString &key, const QString &value);
+    QStringList getRemotes();
+    QString getRemoteUrl(const QString &remoteName);
+    bool addRemote(const QString &name, const QString &url);
+    bool setRemoteUrl(const QString &name, const QString &url);
+    bool removeRemote(const QString &name);
+
+    // Reflog
+    struct ReflogEntry {
+        QString oldId;
+        QString newId;
+        QString committer;
+        QString message;
+    };
+    QVector<ReflogEntry> getReflog(const QString &refname = QStringLiteral("HEAD"));
 
     /* ── Clone & Credentials (Faz 6) ─────────────────── */
     void setCredentials(const QString &username, const QString &token);
@@ -149,6 +169,9 @@ public:
     /* ── Commit Details & Blame (Faz 4 & 5) ──────────── */
     QVector<FileStatusEntry> getCommitChangedFiles(const QString &commitId);
     QString getCommitDiff(const QString &commitId, const QString &filePath = QString());
+    QString getTwoCommitsDiff(const QString &oid1, const QString &oid2, const QString &filePath = QString());
+
+    QVector<FileStatusEntry> getTwoCommitsChangedFiles(const QString &oid1, const QString &oid2);
     QVector<BlameLine> getBlame(const QString &filePath);
 
     /* ── Branch & Tag management (Faz 4 & 5) ─────────── */

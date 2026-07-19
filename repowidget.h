@@ -19,8 +19,8 @@ class QStackedWidget;
 class QTreeView;
 class QFileSystemModel;
 class QCheckBox;
+class QSortFilterProxyModel;
 class QLineEdit;
-
 class GitManager;
 class DiffViewWidget;
 class CommitGraphModel;
@@ -35,11 +35,12 @@ public:
     ~RepoWidget() override;
 
     QString repoPath() const { return m_repoPath; }
+    GitManager* gitManager() const { return m_git; }
 
 public slots:
     void refreshAll();
     void switchPerspective(int index);
-    void doPush();
+    void doPush(bool force = false);
     void doPull();
     void doFetch();
     void startGitFlowBranch(const QString &prefix);
@@ -125,7 +126,9 @@ private:
     DiffViewWidget *m_historyDiffView;
     QTableView     *m_logTable;
     CommitGraphModel *m_logModel;
+    QSortFilterProxyModel *m_logProxyModel;
     CommitGraphDelegate *m_logDelegate;
+    QLineEdit      *m_commitSearchFilter;
     QLabel         *m_commitDetailsLabel;
 
     QTextEdit      *m_commitEdit;

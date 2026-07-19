@@ -786,7 +786,7 @@ int GitManager::credentialCb(void *out, const char *url,
 //  Faz 2 — Push
 // ═══════════════════════════════════════════════════════════════════
 
-bool GitManager::push(const QString &remoteName)
+bool GitManager::push(const QString &remoteName, bool force)
 {
     if (!ensureOpen()) return false;
 
@@ -803,8 +803,12 @@ bool GitManager::push(const QString &remoteName)
         return false;
     }
 
-    QByteArray refspec = QStringLiteral("refs/heads/%1:refs/heads/%1")
-                             .arg(branch).toUtf8();
+    QString refspecStr = QStringLiteral("refs/heads/%1:refs/heads/%1").arg(branch);
+    if (force) {
+        refspecStr.prepend(QStringLiteral("+"));
+    }
+    
+    QByteArray refspec = refspecStr.toUtf8();
     char *specs[] = { refspec.data() };
     git_strarray refspecs = { specs, 1 };
 
@@ -1747,3 +1751,266 @@ bool GitManager::fetch(const QString &remoteName)
     return true;
 }
 
+// ═══════════════════════════════════════════════════════════════════
+//  Faz 6 — Config & Remotes
+// ═══════════════════════════════════════════════════════════════════
+
+QString GitManager::getConfigValue(const QString &key)
+{
+    if (!ensureOpen()) return QString();
+    git_config *cfg = nullptr;
+    if (git_repository_config(&cfg, m_repo) == 0) {
+        git_buf buf = {0};
+        if (git_config_get_string_buf(&buf, cfg, key.toUtf8().constData()) == 0) {
+            QString val = QString::fromUtf8(buf.ptr);
+            git_buf_dispose(&buf);
+            git_config_free(cfg);
+            return val;
+        }
+        git_config_free(cfg);
+    }
+    return QString();
+}
+
+bool GitManager::setConfigValue(const QString &key, const QString &value)
+{
+    if (!ensureOpen()) return false;
+    git_config *cfg = nullptr;
+    if (git_repository_config(&cfg, m_repo) == 0) {
+        int err = git_config_set_string(cfg, key.toUtf8().constData(), value.toUtf8().constData());
+        git_config_free(cfg);
+        if (err == 0) return true;
+    }
+    setError("Failed to set config value.");
+    return false;
+}
+
+QStringList GitManager::getRemotes()
+{
+    QStringList list;
+    if (!ensureOpen()) return list;
+    git_strarray remotes = {0};
+    if (git_remote_list(&remotes, m_repo) == 0) {
+        for (size_t i = 0; i < remotes.count; ++i) {
+            list.append(QString::fromUtf8(remotes.strings[i]));
+        }
+        git_strarray_dispose(&remotes);
+    }
+    return list;
+}
+
+QString GitManager::getRemoteUrl(const QString &remoteName)
+{
+    if (!ensureOpen()) return QString();
+    git_remote *remote = nullptr;
+    if (git_remote_lookup(&remote, m_repo, remoteName.toUtf8().constData()) == 0) {
+        QString url = QString::fromUtf8(git_remote_url(remote));
+        git_remote_free(remote);
+        return url;
+    }
+    return QString();
+}
+
+bool GitManager::addRemote(const QString &name, const QString &url)
+{
+    if (!ensureOpen()) return false;
+    git_remote *remote = nullptr;
+    if (git_remote_create(&remote, m_repo, name.toUtf8().constData(), url.toUtf8().constData()) == 0) {
+        git_remote_free(remote);
+        return true;
+    }
+    setError("Failed to add remote.");
+    return false;
+}
+
+bool GitManager::setRemoteUrl(const QString &name, const QString &url)
+{
+    if (!ensureOpen()) return false;
+    if (git_remote_set_url(m_repo, name.toUtf8().constData(), url.toUtf8().constData()) == 0) {
+        return true;
+    }
+    setError("Failed to set remote URL.");
+    return false;
+}
+
+bool GitManager::removeRemote(const QString &name)
+{
+    if (!ensureOpen()) return false;
+    if (git_remote_delete(m_repo, name.toUtf8().constData()) == 0) {
+        return true;
+    }
+    setError("Failed to remove remote.");
+    return false;
+}
+
+QVector<GitManager::ReflogEntry> GitManager::getReflog(const QString &refname)
+{
+    QVector<ReflogEntry> result;
+    if (!ensureOpen()) return result;
+
+    git_reflog *reflog = nullptr;
+    if (git_reflog_read(&reflog, m_repo, refname.toUtf8().constData()) == 0) {
+        size_t count = git_reflog_entrycount(reflog);
+        for (size_t i = 0; i < count; ++i) {
+            const git_reflog_entry *entry = git_reflog_entry_byindex(reflog, i);
+            if (!entry) continue;
+
+            ReflogEntry re;
+            
+            char old_id[GIT_OID_HEXSZ + 1];
+            char new_id[GIT_OID_HEXSZ + 1];
+            git_oid_tostr(old_id, sizeof(old_id), git_reflog_entry_id_old(entry));
+            git_oid_tostr(new_id, sizeof(new_id), git_reflog_entry_id_new(entry));
+            
+            re.oldId = QString::fromLatin1(old_id);
+            re.newId = QString::fromLatin1(new_id);
+            
+            const git_signature *committer = git_reflog_entry_committer(entry);
+            if (committer) {
+                re.committer = QString::fromUtf8(committer->name);
+            }
+            
+            const char *msg = git_reflog_entry_message(entry);
+            if (msg) {
+                re.message = QString::fromUtf8(msg);
+            }
+            
+            result.append(re);
+        }
+        git_reflog_free(reflog);
+    }
+    return result;
+}
+
+QPair<int, int> GitManager::getAheadBehind(const QString &localBranch)
+{
+    if (!ensureOpen()) return qMakePair(0, 0);
+
+    git_reference *local_ref = nullptr;
+    QString refName = "refs/heads/" + localBranch;
+    if (git_reference_lookup(&local_ref, m_repo, refName.toUtf8().constData()) != 0) {
+        return qMakePair(0, 0);
+    }
+
+    git_reference *upstream_ref = nullptr;
+    if (git_branch_upstream(&upstream_ref, local_ref) != 0) {
+        git_reference_free(local_ref);
+        return qMakePair(0, 0);
+    }
+
+    const git_oid *local_oid = git_reference_target(local_ref);
+    const git_oid *upstream_oid = git_reference_target(upstream_ref);
+
+    size_t ahead = 0, behind = 0;
+    if (local_oid && upstream_oid) {
+        git_graph_ahead_behind(&ahead, &behind, m_repo, local_oid, upstream_oid);
+    }
+
+    git_reference_free(upstream_ref);
+    git_reference_free(local_ref);
+
+    return qMakePair((int)ahead, (int)behind);
+}
+
+QString GitManager::getTwoCommitsDiff(const QString &oid1, const QString &oid2, const QString &filePath)
+{
+    if (!ensureOpen() || oid1.isEmpty() || oid2.isEmpty()) return QString();
+
+    git_oid id1, id2;
+    if (git_oid_fromstr(&id1, oid1.toUtf8().constData()) < 0) return QString();
+    if (git_oid_fromstr(&id2, oid2.toUtf8().constData()) < 0) return QString();
+
+    git_commit *commit1 = nullptr;
+    git_commit *commit2 = nullptr;
+    if (git_commit_lookup(&commit1, m_repo, &id1) < 0) return QString();
+    if (git_commit_lookup(&commit2, m_repo, &id2) < 0) {
+        git_commit_free(commit1);
+        return QString();
+    }
+
+    git_tree *tree1 = nullptr;
+    git_tree *tree2 = nullptr;
+    git_commit_tree(&tree1, commit1);
+    git_commit_tree(&tree2, commit2);
+
+    git_diff *diff = nullptr;
+    git_diff_options opts = GIT_DIFF_OPTIONS_INIT;
+    opts.context_lines = 3;
+
+    QByteArray pathBytes;
+    char *paths[1];
+    if (!filePath.isEmpty()) {
+        pathBytes = filePath.toUtf8();
+        paths[0] = pathBytes.data();
+        opts.pathspec.strings = paths;
+        opts.pathspec.count   = 1;
+    }
+
+    QString result;
+    if (git_diff_tree_to_tree(&diff, m_repo, tree1, tree2, &opts) == 0) {
+        git_diff_print(diff, GIT_DIFF_FORMAT_PATCH, diffPrintCb, &result);
+        git_diff_free(diff);
+    }
+
+    if (tree1) git_tree_free(tree1);
+    if (tree2) git_tree_free(tree2);
+    git_commit_free(commit1);
+    git_commit_free(commit2);
+
+    return result;
+}
+
+QVector<FileStatusEntry> GitManager::getTwoCommitsChangedFiles(const QString &oid1, const QString &oid2)
+{
+    QVector<FileStatusEntry> result;
+    if (!ensureOpen() || oid1.isEmpty() || oid2.isEmpty()) return result;
+
+    git_oid id1, id2;
+    if (git_oid_fromstr(&id1, oid1.toUtf8().constData()) < 0) return result;
+    if (git_oid_fromstr(&id2, oid2.toUtf8().constData()) < 0) return result;
+
+    git_commit *commit1 = nullptr;
+    git_commit *commit2 = nullptr;
+    if (git_commit_lookup(&commit1, m_repo, &id1) < 0) return result;
+    if (git_commit_lookup(&commit2, m_repo, &id2) < 0) {
+        git_commit_free(commit1);
+        return result;
+    }
+
+    git_tree *tree1 = nullptr;
+    git_tree *tree2 = nullptr;
+    git_commit_tree(&tree1, commit1);
+    git_commit_tree(&tree2, commit2);
+
+    git_diff *diff = nullptr;
+    git_diff_options opts = GIT_DIFF_OPTIONS_INIT;
+    
+    if (git_diff_tree_to_tree(&diff, m_repo, tree1, tree2, &opts) == 0) {
+        size_t count = git_diff_num_deltas(diff);
+        for (size_t i = 0; i < count; ++i) {
+            const git_diff_delta *delta = git_diff_get_delta(diff, i);
+            if (!delta) continue;
+
+            FileStatusEntry entry;
+            entry.path = QString::fromUtf8(delta->new_file.path);
+            
+            switch (delta->status) {
+                case GIT_DELTA_ADDED:    entry.worktreeStatus = FileStatusEntry::Added; break;
+                case GIT_DELTA_DELETED:  entry.worktreeStatus = FileStatusEntry::Deleted; break;
+                case GIT_DELTA_MODIFIED: entry.worktreeStatus = FileStatusEntry::Modified; break;
+                case GIT_DELTA_RENAMED:  entry.worktreeStatus = FileStatusEntry::Renamed; break;
+                default:                 entry.worktreeStatus = FileStatusEntry::Modified; break;
+            }
+            entry.indexStatus = FileStatusEntry::Unmodified; // We only use worktreeStatus for diff view color
+            result.append(entry);
+        }
+        git_diff_free(diff);
+    }
+
+    if (tree1) git_tree_free(tree1);
+    if (tree2) git_tree_free(tree2);
+    git_commit_free(commit1);
+    git_commit_free(commit2);
+
+    return result;
+}
