@@ -33,6 +33,15 @@ static int diffPrintCb(const git_diff_delta * /*delta*/,
 {
     QString *output = static_cast<QString *>(payload);
 
+    // "Professional Touch": Prevent freezing on massive diffs (e.g. huge text/hex files)
+    const int MAX_DIFF_LENGTH = 100 * 1024; // 100 KB text limit per diff view
+    if (output->length() > MAX_DIFF_LENGTH) {
+        if (!output->endsWith("\n--- Diff output truncated (file too large) ---\n")) {
+            output->append("\n--- Diff output truncated (file too large) ---\n");
+        }
+        return -1; // Return non-zero to abort further iteration and save performance
+    }
+
     // Prefix character for the line origin
     if (line->origin == GIT_DIFF_LINE_ADDITION  ||
         line->origin == GIT_DIFF_LINE_DELETION  ||
