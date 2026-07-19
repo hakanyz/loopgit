@@ -68,7 +68,7 @@ void MainWindow::setupUi()
         }
     });
 
-    m_trayIcon = new QSystemTrayIcon(QIcon(":/icons/app_icon.ico"), this);
+    m_trayIcon = new QSystemTrayIcon(qApp->windowIcon(), this);
     m_trayMenu = new QMenu(this);
     
     QAction *actShow = m_trayMenu->addAction("Show LoopGit");
@@ -82,7 +82,7 @@ void MainWindow::setupUi()
     QAction *actQuit = m_trayMenu->addAction("Quit LoopGit");
     connect(actQuit, &QAction::triggered, this, [this]() {
         m_reallyQuit = true;
-        close();
+        qApp->quit();
     });
     
     m_trayIcon->setContextMenu(m_trayMenu);

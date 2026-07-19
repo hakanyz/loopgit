@@ -14,6 +14,7 @@ int main(int argc, char *argv[])
     app.setApplicationVersion(QStringLiteral("0.1.0"));
     app.setOrganizationName(QStringLiteral("MyCompany"));
     app.setWindowIcon(QIcon(":/icons/app_icon.ico"));
+    app.setQuitOnLastWindowClosed(false);
 
     // Make the white background transparent by masking it to a perfect circle
     QImage logo(":/resources/logo.png");
