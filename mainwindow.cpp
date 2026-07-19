@@ -1424,7 +1424,22 @@ void MainWindow::showAboutDialog()
 {
     QMessageBox aboutBox(this);
     aboutBox.setWindowTitle(QStringLiteral("About GitZen"));
-    aboutBox.setIconPixmap(QPixmap(":/resources/logo.png").scaled(64, 64, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    QImage logo(":/resources/logo.png");
+    logo = logo.convertToFormat(QImage::Format_ARGB32);
+    float cx = logo.width() / 2.0f;
+    float cy = logo.height() / 2.0f;
+    float radius = cx - 2.0f;
+    for (int y = 0; y < logo.height(); ++y) {
+        for (int x = 0; x < logo.width(); ++x) {
+            float dx = x - cx;
+            float dy = y - cy;
+            if (dx*dx + dy*dy > radius*radius) {
+                logo.setPixelColor(x, y, Qt::transparent);
+            }
+        }
+    }
+
+    aboutBox.setIconPixmap(QPixmap::fromImage(logo).scaled(64, 64, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     aboutBox.setTextFormat(Qt::RichText);
     aboutBox.setText(QStringLiteral(
         "<h3>GitZen v0.1.0</h3>"
