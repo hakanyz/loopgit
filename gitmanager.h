@@ -120,6 +120,9 @@ public:
     bool resolveUsingOurs(const QString &path);
     bool resolveUsingTheirs(const QString &path);
 
+    /* ── History Rewrite (Faz 3) ─────────────────────── */
+    bool squashCommits(const QString &baseCommitId, const QString &newMessage);
+
     /* ── Push / Pull / Fetch (Faz 2 & 6) ─────────────── */
     bool push(const QString &remoteName = QStringLiteral("origin"));
     bool pull(const QString &remoteName = QStringLiteral("origin"));

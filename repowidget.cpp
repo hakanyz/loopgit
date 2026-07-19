@@ -191,7 +191,8 @@ void RepoWidget::setupCentralWidget() {
     m_logTable->setModel(m_logModel);
     m_logTable->setItemDelegate(m_logDelegate);
     m_logTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-    m_logTable->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_logTable->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    m_logTable->setContextMenuPolicy(Qt::CustomContextMenu);
     m_logTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_logTable->setAlternatingRowColors(true);
     m_logTable->setShowGrid(false);
@@ -312,6 +313,9 @@ void RepoWidget::connectSignals()
     });
     
     // Log
+    connect(m_logTable, &QTableView::customContextMenuRequested,
+            this, &RepoWidget::showHistoryContextMenu);
+
     connect(m_logTable->selectionModel(), &QItemSelectionModel::selectionChanged,
             this, &RepoWidget::onCommitSelected);
     
@@ -1173,17 +1177,81 @@ void RepoWidget::showDirTreeContextMenu(const QPoint &pos)
     }
 }
 
+void RepoWidget::showHistoryContextMenu(const QPoint &pos)
+{
+    QModelIndexList selection = m_logTable->selectionModel()->selectedRows();
+    if (selection.isEmpty()) return;
 
+    std::sort(selection.begin(), selection.end(), [](const QModelIndex &a, const QModelIndex &b) {
+        return a.row() < b.row();
+    });
 
+    QMenu menu(this);
+    QAction *actSquash = nullptr;
+    QAction *actReword = nullptr;
 
+    bool contiguousFromHead = true;
+    for (int i = 0; i < selection.size(); ++i) {
+        if (selection[i].row() != i) {
+            contiguousFromHead = false;
+            break;
+        }
+    }
 
+    if (contiguousFromHead && selection.size() > 1) {
+        actSquash = menu.addAction(QStringLiteral("Squash %1 Selected Commits").arg(selection.size()));
+    }
 
+    if (selection.size() == 1 && selection[0].row() == 0) {
+        actReword = menu.addAction(QStringLiteral("Reword HEAD Commit"));
+    }
 
+    if (menu.isEmpty()) return;
 
+    QAction *res = menu.exec(m_logTable->viewport()->mapToGlobal(pos));
+    if (!res) return;
 
+    if (res == actSquash) {
+        int oldestRow = selection.last().row();
+        
+        QString baseCommitId;
+        QVariant data = m_logModel->data(m_logModel->index(oldestRow, 0), CommitGraphModel::GraphNodeRole);
+        if (data.isValid()) {
+            GraphCommit gc = data.value<GraphCommit>();
+            if (!gc.commit.parentIds.isEmpty()) {
+                baseCommitId = gc.commit.parentIds.first();
+            }
+        }
 
+        if (baseCommitId.isEmpty()) {
+            QMessageBox::warning(this, "Squash Error", "Cannot squash the initial commit or could not determine parent.");
+            return;
+        }
 
-
-
-
-
+        bool ok;
+        QString text = QInputDialog::getMultiLineText(this, "Squash Commits",
+                                                      "Enter the new commit message for the squashed commits:",
+                                                      "Squashed commit", &ok);
+        if (ok && !text.isEmpty()) {
+            if (m_git->squashCommits(baseCommitId, text)) {
+                refreshAll();
+            } else {
+                QMessageBox::critical(this, "Error", m_git->lastError());
+            }
+        }
+    } else if (res == actReword) {
+        QVariant data = m_logModel->data(selection[0], CommitGraphModel::GraphNodeRole);
+        GraphCommit gc = data.value<GraphCommit>();
+        bool ok;
+        QString text = QInputDialog::getMultiLineText(this, "Reword Commit",
+                                                      "Enter the new commit message:",
+                                                      gc.commit.message, &ok);
+        if (ok && !text.isEmpty() && text != gc.commit.message) {
+            if (m_git->commit(text, true)) { // true = amend
+                refreshAll();
+            } else {
+                QMessageBox::critical(this, "Error", m_git->lastError());
+            }
+        }
+    }
+}

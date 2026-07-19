@@ -74,6 +74,7 @@ private slots:
     void showBranchContextMenu(const QPoint &pos);
     void showLocalFilesContextMenu(const QPoint &pos);
     void showDirTreeContextMenu(const QPoint &pos);
+    void showHistoryContextMenu(const QPoint &pos);
 
     // ── Misc ────────────────────────────────────────────
     void onRepoChanged(const QString &path);

@@ -682,6 +682,38 @@ bool GitManager::resolveUsingTheirs(const QString &path)
     return stageFile(path); // Mark as resolved by staging
 }
 
+// ═══════════════════════════════════════════════════════════════════
+//  Faz 3 — Interactive Rebase (Squash)
+// ═══════════════════════════════════════════════════════════════════
+
+bool GitManager::squashCommits(const QString &baseCommitId, const QString &newMessage)
+{
+    if (!ensureOpen() || baseCommitId.isEmpty()) return false;
+
+    git_oid baseOid;
+    if (git_oid_fromstr(&baseOid, baseCommitId.toUtf8().constData()) < 0) {
+        setError(QStringLiteral("Invalid base commit ID for squash"));
+        return false;
+    }
+
+    git_object *baseObj = nullptr;
+    if (git_object_lookup(&baseObj, m_repo, &baseOid, GIT_OBJECT_COMMIT) < 0) {
+        setError(QStringLiteral("Could not find base commit"));
+        return false;
+    }
+
+    // Perform a soft reset to the base commit
+    if (git_reset(m_repo, baseObj, GIT_RESET_SOFT, nullptr) < 0) {
+        setError(QStringLiteral("Failed to perform soft reset"));
+        git_object_free(baseObj);
+        return false;
+    }
+    git_object_free(baseObj);
+
+    // Commit the squashed changes with the new message
+    return commit(newMessage, false);
+}
+
 bool GitManager::addToGitignore(const QString &path)
 {
     if (!ensureOpen() || path.isEmpty()) return false;
