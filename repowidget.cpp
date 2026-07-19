@@ -57,7 +57,7 @@ RepoWidget::RepoWidget(const QString &repoPath, QWidget *parent)
     connectSignals();
     
     if (m_git->openRepository(m_repoPath)) {
-        refreshAll();
+        QTimer::singleShot(0, this, &RepoWidget::refreshAll);
     } else {
         emit statusMessage(QStringLiteral("Failed to open repository: %1").arg(m_git->lastError()));
     }
