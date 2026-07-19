@@ -13,7 +13,7 @@ if(DEFINED CMAKE_C_COMPILER AND CMAKE_C_COMPILER MATCHES "mingw")
     endif()
 endif()
 
-project(GitZen VERSION 0.1 LANGUAGES C CXX)
+project(LoopGit VERSION 0.1 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -74,42 +74,42 @@ set(PROJECT_SOURCES
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
-    qt_add_executable(GitZen
+    qt_add_executable(LoopGit
         MANUAL_FINALIZATION
         ${PROJECT_SOURCES}
     )
 else()
     if(ANDROID)
-        add_library(GitZen SHARED ${PROJECT_SOURCES})
+        add_library(LoopGit SHARED ${PROJECT_SOURCES})
     else()
-        add_executable(GitZen ${PROJECT_SOURCES})
+        add_executable(LoopGit ${PROJECT_SOURCES})
     endif()
 endif()
 
-target_link_libraries(GitZen PRIVATE
+target_link_libraries(LoopGit PRIVATE
     Qt${QT_VERSION_MAJOR}::Widgets
     ${LIBGIT2_LIBRARIES}
 )
 
 # When using FetchContent, we need to add libgit2 include dirs manually
 if(NOT unofficial-libgit2_FOUND AND NOT libgit2_FOUND)
-    target_include_directories(GitZen PRIVATE
+    target_include_directories(LoopGit PRIVATE
         ${libgit2_SOURCE_DIR}/include
     )
 endif()
 
-set_target_properties(GitZen PROPERTIES
+set_target_properties(LoopGit PROPERTIES
     MACOSX_BUNDLE TRUE
     WIN32_EXECUTABLE TRUE
 )
 
 include(GNUInstallDirs)
-install(TARGETS GitZen
+install(TARGETS LoopGit
     BUNDLE  DESTINATION .
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
 if(QT_VERSION_MAJOR EQUAL 6)
-    qt_finalize_executable(GitZen)
+    qt_finalize_executable(LoopGit)
 endif()

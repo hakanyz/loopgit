@@ -138,12 +138,14 @@ void MainWindow::setupToolBar()
     m_toolBar->setMovable(false);
     m_toolBar->setToolButtonStyle(Qt::ToolButtonTextOnly);
     m_toolBar->setStyleSheet(QStringLiteral(
-        "QToolBar { padding: 5px; border-bottom: 1px solid #333; }"
-        "QToolButton { margin: 0 3px; padding: 5px 12px; font-size: 13px; border-radius: 4px; background-color: #2D2D2D; border: 1px solid #3C3C3C; font-weight: bold; }"
-        "QToolButton:hover { background-color: #3C3C3C; border: 1px solid #555555; }"
-        "QToolButton:checked { background-color: #094771; border: 1px solid #007ACC; color: white; }"
-        "QComboBox { margin: 0 10px; padding: 4px; border: 1px solid #555; border-radius: 4px; min-width: 150px; background-color: #2D2D2D; }"
+        "QToolBar { padding: 4px; border-bottom: 1px solid #2D2D2D; background-color: #1E1E1E; }"
+        "QToolButton { margin: 0 4px; padding: 6px 14px; font-size: 13px; font-weight: bold; border-radius: 6px; background-color: transparent; border: none; color: #E0E0E0; }"
+        "QToolButton:hover { background-color: rgba(255, 255, 255, 0.1); }"
+        "QToolButton:pressed { background-color: rgba(255, 255, 255, 0.15); }"
+        "QToolButton:checked { background-color: #094771; color: white; }"
+        "QComboBox { margin: 0 10px; padding: 4px 10px; border: 1px solid #444; border-radius: 6px; min-width: 150px; background-color: #252526; color: white; }"
         "QComboBox:hover { border: 1px solid #007ACC; }"
+        "QComboBox::drop-down { border: none; }"
     ));
 
     m_actLocalFiles = new QAction(QStringLiteral("Local Files"), this);
@@ -164,6 +166,7 @@ void MainWindow::setupToolBar()
 
     // Branch Control
     m_branchCombo = new QComboBox(this);
+    m_branchCombo->setVisible(false); // Hidden until a repo is opened
     m_toolBar->addWidget(m_branchCombo);
     
     connect(m_branchCombo, &QComboBox::textActivated, this, [this](const QString &branchName){
@@ -1484,7 +1487,7 @@ void MainWindow::updateBranchCombo()
 {
     if (!m_git->isOpen()) {
         m_branchCombo->clear();
-        m_branchCombo->setEnabled(false);
+        m_branchCombo->setVisible(false);
         return;
     }
     
@@ -1500,6 +1503,6 @@ void MainWindow::updateBranchCombo()
             }
         }
     }
-    m_branchCombo->setEnabled(true);
+    m_branchCombo->setVisible(true);
     m_branchCombo->blockSignals(false);
 }

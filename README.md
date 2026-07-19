@@ -1,36 +1,36 @@
-# GitZen
+# LoopGit
 
-GitZen is a lightweight, native Git GUI client built with C++, Qt6, and libgit2.
+LoopGit is a lightweight, native Git GUI client built with C++, Qt6, and libgit2.
 
-## Motivation
+## Why LoopGit?
 
-Most modern Git clients are built on top of web technologies like Electron. While they look nice, they tend to be heavy, consume excessive RAM, and feel sluggish just to display a simple commit log or diff. 
+Git is an essential tool, but many graphical Git clients are either built with web technologies (Electron), making them resource-heavy and slow, or they lack a clean, modern interface.
 
-GitZen was built to solve this problem. It is a fully native application. It uses libgit2 directly for Git operations, ensuring maximum performance, and Qt6 for a responsive, distraction-free user interface.
+LoopGit was built to solve this problem. It is a fully native application. It uses libgit2 directly for Git operations, ensuring maximum performance, and Qt6 for a responsive, distraction-free user interface.
 
 ## Features
 
-- Native performance with minimal memory footprint
-- Custom commit history graph rendering
-- Integrated diff viewer with hunk-level staging
-- Remote support (Clone, Fetch, Pull, Push) via GitHub Personal Access Tokens (PAT)
-- Branch management, cherry-picking, stashing, and revert capabilities
-- Dark mode interface designed for readability
+- **Blazing Fast**: Built with C++ and libgit2 for native performance.
+- **Modern UI**: A sleek, dark-themed interface built with Qt6.
+- **Core Git Operations**: Stage/unstage, commit, push, pull, fetch, branch management, stash, pop, cherry-pick, revert.
+- **Diff Viewer**: Integrated diff viewer to see your changes at a glance.
+- **Commit Graph**: Visualize your repository's history with an interactive commit graph.
 
 ## Build Instructions
 
-GitZen uses CMake as its build system. The build process will automatically fetch and compile `libgit2` if it's not found on your system.
+LoopGit uses CMake as its build system. The build process will automatically fetch and compile `libgit2` if it's not found on your system.
 
 ### Prerequisites
-- C++17 compatible compiler
-- CMake 3.16+
-- Qt6 (Widgets module)
 
-### Build Steps (Linux, macOS, Windows)
+- A C++17 compatible compiler (GCC, Clang, MSVC)
+- CMake (3.21 or newer)
+- Qt 6 (Core, Gui, Widgets, Network)
+
+### Building
 
 ```bash
-git clone https://github.com/hakanyz/gitzen.git
-cd gitzen
+git clone https://github.com/hakanyz/loopgit.git
+cd loopgit
 
 mkdir build
 cd build
@@ -39,9 +39,10 @@ cmake ..
 cmake --build .
 ```
 
-After building, you can run the executable directly from the build directory:
-- On Linux/macOS: `./GitZen`
-- On Windows: `.\GitZen.exe`
+### Running
+
+- On Linux/macOS: `./LoopGit`
+- On Windows: `.\LoopGit.exe`
 
 ## Contributing
 
