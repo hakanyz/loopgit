@@ -349,7 +349,15 @@ void MainWindow::setupToolBar()
             QString workingDir = rw->repoPath();
             if (workingDir.isEmpty()) return;
 #ifdef Q_OS_WIN
-            QProcess::startDetached("cmd.exe", QStringList() << "/c" << "start" << "powershell.exe", workingDir);
+            QString gitBashPath1 = "C:\\Program Files\\Git\\git-bash.exe";
+            QString gitBashPath2 = "C:\\Program Files (x86)\\Git\\git-bash.exe";
+            if (QFile::exists(gitBashPath1)) {
+                QProcess::startDetached(gitBashPath1, QStringList() << "--cd=" + workingDir);
+            } else if (QFile::exists(gitBashPath2)) {
+                QProcess::startDetached(gitBashPath2, QStringList() << "--cd=" + workingDir);
+            } else {
+                QProcess::startDetached("cmd.exe", QStringList() << "/c" << "start" << "powershell.exe", workingDir);
+            }
 #elif defined(Q_OS_MAC)
             QStringList args;
             args << "-e" << QString("tell application \"Terminal\" to do script \"cd '%1'\"").arg(workingDir)
