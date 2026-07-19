@@ -1,57 +1,73 @@
 # LoopGit
 
-LoopGit is a lightweight, native Git GUI client built with C++, Qt6, and libgit2.
+LoopGit is a fast, lightweight, and native Git GUI client built for developers who value performance and simplicity. Unlike many modern Git clients built on top of resource-heavy web technologies (Electron), LoopGit is written in C++ using Qt6 and communicates directly with your repositories via `libgit2`.
 
-## Why LoopGit?
+It delivers instant startup times, low memory consumption (typically under 50MB RAM), and a distraction-free dark interface.
 
-Git is an essential tool, but many graphical Git clients are either built with web technologies (Electron), making them resource-heavy and slow, or they lack a clean, modern interface.
+---
 
-LoopGit was built to solve this problem. It is a fully native application. It uses libgit2 directly for Git operations, ensuring maximum performance, and Qt6 for a responsive, distraction-free user interface.
+## Key Features
 
-## Features
+### ⚡ Performance & Core
+* **Native Speed**: Zero Electron overhead. Built with C++17 and `libgit2`.
+* **Multi-Repository Tabs**: Work on multiple repositories simultaneously in a clean tabbed view.
+* **Status Summary**: At-a-glance branch synchronization status (`[↑X ↓Y]` ahead/behind indicators).
 
-- **Blazing Fast**: Built with C++ and libgit2 for native performance.
-- **Modern UI**: A sleek, dark-themed interface built with Qt6.
-- **Visual Commit Graph**: Interactive lane-based git commit graph representation.
-- **Interactive Conflict Resolver**: Side-by-side visual merge conflict resolution tool.
-- **Advanced Diff & Compare**: Compare any two commits by holding `Ctrl` and selecting them in the log.
-- **Ahead/Behind Indicators**: View branch sync status (`[↑X ↓Y]`) directly in the side panel.
-- **Settings & Remotes UI**: Manage your git configuration and remote URLs without touching the CLI.
-- **Reflog & Blame Viewer**: Look up local repository reflog pointer history or blame line annotations.
-- **Core Operations & Shortcuts**: Easy push, pull, fetch, commit (amend), stash, cherry-pick, revert with global shortcuts.
+### 🛠️ Working Directory & Diff
+* **Stage & Unstage**: Fast file tree categorized into Staged, Unstaged, and Conflicted files.
+* **Interactive Conflict Resolver**: Visual split-view tool to resolve merge conflicts using *Ours*, *Theirs*, or *Both* strategies.
+* **Advanced Diff & Compare**: Compare changes between any two commits by holding `Ctrl` and selecting them in the history graph.
+* **File Filtering**: Instantly filter modified file trees in large commits to locate specific file types.
+* **Automatic Draft Saving**: Your commit message draft is safely saved and restored if the application is closed.
+
+### 📈 History & Repository Views
+* **Continuous Git Graph**: Renders a visually clean, color-coded branch lane graph showing merges, tags, and commits.
+* **Instant History Search**: Real-time filtering by Commit Hash, Author name, or Message.
+* **Blame & Reflog**: Right-click to inspect line-by-line file history (Blame) or view pointer history (Reflog) to recover lost commits.
+* **Git Flow Integration**: Direct actions to manage feature, bugfix, release, and hotfix branches.
+
+---
+
+## Keyboard Shortcuts
+
+LoopGit is designed to keep your hands on the keyboard. Below are the default shortcuts (also accessible via `Help -> Keyboard Shortcuts...`):
+
+| Shortcut | Action |
+| --- | --- |
+| `Ctrl + O` | Open Local Repository |
+| `Ctrl + W` | Close Current Tab |
+| `Ctrl + F` | Fetch from Remote |
+| `Ctrl + P` | Push to Remote (includes dropdown for Force Push) |
+| `Ctrl + Shift + P` | Pull from Remote |
+| `Ctrl + Shift + C` | Focus Commit Message Box |
+| `Ctrl + Return` | Commit Staged Changes (when message box is focused) |
+
+---
 
 ## Build Instructions
 
-LoopGit uses CMake as its build system. The build process will automatically fetch and compile `libgit2` if it's not found on your system.
+LoopGit uses CMake. The build process automatically downloads and compiles `libgit2` as a static dependency if it's not found on your system.
 
 ### Prerequisites
+* A C++17 compatible compiler (GCC 9+, Clang 10+, or MSVC 2019+)
+* CMake 3.16 or newer
+* Qt 6 (Core, Gui, Widgets)
 
-- A C++17 compatible compiler (GCC, Clang, MSVC)
-- CMake (3.21 or newer)
-- Qt 6 (Core, Gui, Widgets, Network)
-
-### Building
-
+### Compiling
 ```bash
 git clone https://github.com/hakanyz/loopgit.git
 cd loopgit
-
-mkdir build
-cd build
-
-cmake ..
-cmake --build .
+mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release ..
+cmake --build . --config Release
 ```
 
-### Running
+### Running the Binary
+* **Windows**: `.\build\Release\LoopGit.exe`
+* **macOS / Linux**: `./build/LoopGit`
 
-- On Linux/macOS: `./LoopGit`
-- On Windows: `.\LoopGit.exe`
-
-## Contributing
-
-Pull requests and issues are welcome. If you find a bug or want to propose a new feature, feel free to open an issue.
+---
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
