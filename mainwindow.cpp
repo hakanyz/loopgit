@@ -425,11 +425,15 @@ void MainWindow::switchPerspective(int index)
 void MainWindow::setupStatusBar()
 {
     m_statusLabel = new QLabel(QStringLiteral("No repository open"));
-    m_syncStatusLabel = new QLabel(QStringLiteral("☁️ Offline"));
-    m_syncStatusLabel->setStyleSheet(QStringLiteral("color: #888888; margin-right: 10px;"));
+    m_statusLabel->setFrameStyle(QFrame::NoFrame);
+    
+    m_syncStatusLabel = new QLabel(QStringLiteral("Sync: Offline"));
+    m_syncStatusLabel->setFrameStyle(QFrame::NoFrame);
+    m_syncStatusLabel->setStyleSheet(QStringLiteral("color: #888888; padding: 0 10px; background: transparent; border: none;"));
     
     statusBar()->addWidget(m_statusLabel, 1);
     statusBar()->addPermanentWidget(m_syncStatusLabel, 0);
+    statusBar()->setStyleSheet(QStringLiteral("QStatusBar::item { border: none; }")); // Removes the sunken box around status bar items
 }
 
 // ─── Connections ───────────────────────────────────────────────────
@@ -494,7 +498,7 @@ void MainWindow::connectSignals()
             this, [this](const QString &path) {
                 setWindowTitle(QStringLiteral("GitZen — %1").arg(path));
                 setRepoActionsEnabled(true);
-                m_syncStatusLabel->setText(QStringLiteral("☁️ Ready"));
+                m_syncStatusLabel->setText(QStringLiteral("Sync: Ready"));
                 
                 m_dirModel->setRootPath(path);
                 m_dirTree->setRootIndex(m_dirModel->index(path));
@@ -513,7 +517,7 @@ void MainWindow::connectSignals()
             this, [this]() {
                 setWindowTitle(QStringLiteral("GitZen"));
                 setRepoActionsEnabled(false);
-                m_syncStatusLabel->setText(QStringLiteral("☁️ Offline"));
+                m_syncStatusLabel->setText(QStringLiteral("Sync: Offline"));
                 
                 m_dirModel->setRootPath(QString());
                 m_stagedRoot->takeChildren();
@@ -1041,7 +1045,7 @@ void MainWindow::doPush()
     QApplication::processEvents();
 
     if (m_git->push()) {
-        m_syncStatusLabel->setText(QStringLiteral("☁️ Pushed at %1").arg(QTime::currentTime().toString("HH:mm:ss")));
+        m_syncStatusLabel->setText(QStringLiteral("Sync: Pushed at %1").arg(QTime::currentTime().toString("HH:mm:ss")));
         QMessageBox::information(this, "Success", "Successfully pushed to remote.");
         refreshAll();
     } else {
@@ -1058,7 +1062,7 @@ void MainWindow::doPull()
     QApplication::processEvents();
 
     if (m_git->pull()) {
-        m_syncStatusLabel->setText(QStringLiteral("☁️ Pulled at %1").arg(QTime::currentTime().toString("HH:mm:ss")));
+        m_syncStatusLabel->setText(QStringLiteral("Sync: Pulled at %1").arg(QTime::currentTime().toString("HH:mm:ss")));
         QMessageBox::information(this, "Success", "Successfully pulled from remote.");
         refreshAll();
     } else {
@@ -1075,7 +1079,7 @@ void MainWindow::doFetch()
     QApplication::processEvents();
 
     if (m_git->fetch()) {
-        m_syncStatusLabel->setText(QStringLiteral("☁️ Fetched at %1").arg(QTime::currentTime().toString("HH:mm:ss")));
+        m_syncStatusLabel->setText(QStringLiteral("Sync: Fetched at %1").arg(QTime::currentTime().toString("HH:mm:ss")));
         QMessageBox::information(this, "Success", "Successfully fetched from remote.");
         refreshAll();
     } else {
