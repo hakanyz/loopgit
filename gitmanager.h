@@ -115,6 +115,10 @@ public:
     bool discardFileChanges(const QString &path);
     bool addToGitignore(const QString &path);
     bool commit(const QString &message, bool amend = false);
+    
+    /* ── Conflict Resolution (Faz 2) ─────────────────── */
+    bool resolveUsingOurs(const QString &path);
+    bool resolveUsingTheirs(const QString &path);
 
     /* ── Push / Pull / Fetch (Faz 2 & 6) ─────────────── */
     bool push(const QString &remoteName = QStringLiteral("origin"));

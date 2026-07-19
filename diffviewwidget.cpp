@@ -330,6 +330,16 @@ void DiffViewWidget::setDiffText(const QString &diff)
         rightCursor.insertText(rText.isEmpty() ? " " : rText);
     };
 
+    QTextBlockFormat conflictFormat;
+    conflictFormat.setBackground(QColor(220, 20, 60, 150)); // Crimson
+    QTextCharFormat conflictCharFormat;
+    conflictCharFormat.setForeground(Qt::white);
+    conflictCharFormat.setFontWeight(QFont::Bold);
+
+    auto isConflict = [](const QString &s) {
+        return s.contains("<<<<<<<") || s.contains("=======") || s.contains(">>>>>>>");
+    };
+
     QStringList lines = diff.split('\n');
     int i = 0;
     while (i < lines.size()) {
@@ -367,12 +377,22 @@ void DiffViewWidget::setDiffText(const QString &diff)
             int maxCount = qMax(delLines.size(), addLines.size());
             for (int k = 0; k < maxCount; ++k) {
                 QString lText = (k < delLines.size()) ? ("-" + delLines[k]) : "";
-                QTextBlockFormat lBf = (k < delLines.size()) ? delFormat : emptyFormat;
+                QTextBlockFormat lBf = emptyFormat;
+                QTextCharFormat lCf = normalCharFormat;
+                if (k < delLines.size()) {
+                    lBf = isConflict(delLines[k]) ? conflictFormat : delFormat;
+                    lCf = isConflict(delLines[k]) ? conflictCharFormat : normalCharFormat;
+                }
                 
                 QString rText = (k < addLines.size()) ? ("+" + addLines[k]) : "";
-                QTextBlockFormat rBf = (k < addLines.size()) ? addFormat : emptyFormat;
+                QTextBlockFormat rBf = emptyFormat;
+                QTextCharFormat rCf = normalCharFormat;
+                if (k < addLines.size()) {
+                    rBf = isConflict(addLines[k]) ? conflictFormat : addFormat;
+                    rCf = isConflict(addLines[k]) ? conflictCharFormat : normalCharFormat;
+                }
                 
-                addRow(lText, lBf, normalCharFormat, rText, rBf, normalCharFormat);
+                addRow(lText, lBf, lCf, rText, rBf, rCf);
             }
         } 
         else if (line.startsWith("+") && !line.startsWith("+++")) {
@@ -382,7 +402,9 @@ void DiffViewWidget::setDiffText(const QString &diff)
                 i++;
             }
             for (int k = 0; k < addLines.size(); ++k) {
-                addRow("", emptyFormat, normalCharFormat, "+" + addLines[k], addFormat, normalCharFormat);
+                QTextBlockFormat rBf = isConflict(addLines[k]) ? conflictFormat : addFormat;
+                QTextCharFormat rCf = isConflict(addLines[k]) ? conflictCharFormat : normalCharFormat;
+                addRow("", emptyFormat, normalCharFormat, "+" + addLines[k], rBf, rCf);
             }
         } 
         else if (line.startsWith("\\")) {
@@ -390,8 +412,10 @@ void DiffViewWidget::setDiffText(const QString &diff)
         }
         else {
             QString text = line;
-            if (text.startsWith(" ")) text = text; // Keep the space if they want prefixes, but wait, if we stripped +/-, context lines had space. Let's just use line directly.
-            addRow(line, normalFormat, normalCharFormat, line, normalFormat, normalCharFormat);
+            if (text.startsWith(" ")) text = text; 
+            QTextBlockFormat bf = isConflict(text) ? conflictFormat : normalFormat;
+            QTextCharFormat cf = isConflict(text) ? conflictCharFormat : normalCharFormat;
+            addRow(line, bf, cf, line, bf, cf);
             i++;
         }
     }

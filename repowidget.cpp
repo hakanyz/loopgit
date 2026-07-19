@@ -86,6 +86,11 @@ void RepoWidget::setupCentralWidget() {
     m_localChangesTree->setAlternatingRowColors(true);
     m_localChangesTree->setSelectionMode(QAbstractItemView::ExtendedSelection);
 
+    m_conflictedRoot = new QTreeWidgetItem(m_localChangesTree, {"", "Conflicted Files"});
+    m_conflictedRoot->setExpanded(true);
+    m_conflictedRoot->setFlags(Qt::ItemIsEnabled);
+    m_conflictedRoot->setForeground(1, QColor("#F14C4C")); // Red text
+
     m_stagedRoot = new QTreeWidgetItem(m_localChangesTree, {"", "Staged Changes"});
     m_stagedRoot->setExpanded(true);
     m_stagedRoot->setFlags(Qt::ItemIsEnabled);
@@ -417,10 +422,23 @@ void RepoWidget::updateFileList()
 {
     qDeleteAll(m_stagedRoot->takeChildren());
     qDeleteAll(m_unstagedRoot->takeChildren());
+    qDeleteAll(m_conflictedRoot->takeChildren());
 
     QVector<FileStatusEntry> entries = m_git->getFileStatus();
 
     for (const auto &entry : entries) {
+        if (entry.indexStatus == FileStatusEntry::Conflicted || entry.worktreeStatus == FileStatusEntry::Conflicted) {
+            auto *item = new QTreeWidgetItem(m_conflictedRoot);
+            item->setText(0, "C");
+            item->setText(1, entry.path);
+            item->setData(0, Qt::UserRole, entry.path);
+            item->setData(0, Qt::UserRole + 1, false); // treated as unstaged for diffs
+            item->setTextAlignment(0, Qt::AlignCenter);
+            item->setBackground(0, QColor("#F14C4C"));
+            item->setForeground(0, Qt::white);
+            continue; // Skip adding to staged/unstaged if conflicted
+        }
+
         if (entry.hasIndexChanges()) {
             auto *item = new QTreeWidgetItem(m_stagedRoot);
             item->setText(0, FileStatusEntry::statusChar(entry.indexStatus));
@@ -456,6 +474,9 @@ void RepoWidget::updateFileList()
             item->setForeground(0, Qt::white);
         }
     }
+
+    m_conflictedRoot->setText(1, QStringLiteral("Conflicted Files (%1)").arg(m_conflictedRoot->childCount()));
+    m_conflictedRoot->setHidden(m_conflictedRoot->childCount() == 0);
 
     m_stagedRoot->setText(1, QStringLiteral("Staged Changes (%1)").arg(m_stagedRoot->childCount()));
     m_unstagedRoot->setText(1, QStringLiteral("Unstaged Changes (%1)").arg(m_unstagedRoot->childCount()));
@@ -988,11 +1009,24 @@ void RepoWidget::showBranchContextMenu(const QPoint &pos)
 void RepoWidget::showLocalFilesContextMenu(const QPoint &pos)
 {
     QTreeWidgetItem *item = m_localChangesTree->itemAt(pos);
-    if (!item || item == m_stagedRoot || item == m_unstagedRoot) return;
+    if (!item || item == m_stagedRoot || item == m_unstagedRoot || item == m_conflictedRoot) return;
 
     QString path = item->data(0, Qt::UserRole).toString();
+    bool isConflicted = (item->parent() == m_conflictedRoot);
 
     QMenu menu(this);
+    
+    QAction *actResolveOurs = nullptr;
+    QAction *actResolveTheirs = nullptr;
+    QAction *actMarkResolved = nullptr;
+    
+    if (isConflicted) {
+        actResolveOurs = menu.addAction(QStringLiteral("Resolve using 'Ours'"));
+        actResolveTheirs = menu.addAction(QStringLiteral("Resolve using 'Theirs'"));
+        menu.addSeparator();
+        actMarkResolved = menu.addAction(QStringLiteral("Mark as Resolved"));
+        menu.addSeparator();
+    }
     
     QFileInfo fi(path);
     QString fileName = fi.fileName();
@@ -1016,13 +1050,25 @@ void RepoWidget::showLocalFilesContextMenu(const QPoint &pos)
 
     QAction *res = menu.exec(m_localChangesTree->viewport()->mapToGlobal(pos));
     
-    QString ignoreStr;
-    if (res == actIgnoreExact) ignoreStr = path;
-    else if (res && res == actIgnoreExt) ignoreStr = "*." + ext;
-    else if (res && res == actIgnoreFolder) ignoreStr = dir + "/";
+    if (!res) return;
 
-    if (!ignoreStr.isEmpty()) {
-        if (m_git->addToGitignore(ignoreStr)) refreshAll();
+    if (res == actResolveOurs) {
+        if (m_git->resolveUsingOurs(path)) refreshAll();
+        else QMessageBox::critical(this, "Error", m_git->lastError());
+    } else if (res == actResolveTheirs) {
+        if (m_git->resolveUsingTheirs(path)) refreshAll();
+        else QMessageBox::critical(this, "Error", m_git->lastError());
+    } else if (res == actMarkResolved) {
+        if (m_git->stageFile(path)) refreshAll();
+        else QMessageBox::critical(this, "Error", m_git->lastError());
+    } else if (res == actIgnoreExact) {
+        if (m_git->addToGitignore(path)) refreshAll();
+        else QMessageBox::critical(this, "Error", m_git->lastError());
+    } else if (res == actIgnoreExt) {
+        if (m_git->addToGitignore("*." + ext)) refreshAll();
+        else QMessageBox::critical(this, "Error", m_git->lastError());
+    } else if (res == actIgnoreFolder) {
+        if (m_git->addToGitignore(dir + "/")) refreshAll();
         else QMessageBox::critical(this, "Error", m_git->lastError());
     } else if (res == actDiscard) {
         if (QMessageBox::question(this, "Discard", QStringLiteral("Discard local changes in '%1'?").arg(path)) == QMessageBox::Yes) {

@@ -112,6 +112,7 @@ private:
     QTreeWidget    *m_localChangesTree;
     QTreeWidgetItem *m_stagedRoot;
     QTreeWidgetItem *m_unstagedRoot;
+    QTreeWidgetItem *m_conflictedRoot;
     QWidget        *m_commitPanelWidget;
     DiffViewWidget *m_localDiffView;
 

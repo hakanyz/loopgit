@@ -640,6 +640,48 @@ bool GitManager::discardFileChanges(const QString &path)
     return true;
 }
 
+// ═══════════════════════════════════════════════════════════════════
+//  Faz 2 — Conflict Resolution
+// ═══════════════════════════════════════════════════════════════════
+
+bool GitManager::resolveUsingOurs(const QString &path)
+{
+    if (!ensureOpen() || path.isEmpty()) return false;
+    git_checkout_options opts = GIT_CHECKOUT_OPTIONS_INIT;
+    opts.checkout_strategy = GIT_CHECKOUT_USE_OURS | GIT_CHECKOUT_FORCE;
+    
+    QByteArray pathBytes = path.toUtf8();
+    char *paths[1];
+    paths[0] = pathBytes.data();
+    opts.paths.strings = paths;
+    opts.paths.count = 1;
+
+    if (git_checkout_index(m_repo, nullptr, &opts) < 0) {
+        setError(QStringLiteral("Failed to checkout 'ours' version for '%1'").arg(path));
+        return false;
+    }
+    return stageFile(path); // Mark as resolved by staging
+}
+
+bool GitManager::resolveUsingTheirs(const QString &path)
+{
+    if (!ensureOpen() || path.isEmpty()) return false;
+    git_checkout_options opts = GIT_CHECKOUT_OPTIONS_INIT;
+    opts.checkout_strategy = GIT_CHECKOUT_USE_THEIRS | GIT_CHECKOUT_FORCE;
+    
+    QByteArray pathBytes = path.toUtf8();
+    char *paths[1];
+    paths[0] = pathBytes.data();
+    opts.paths.strings = paths;
+    opts.paths.count = 1;
+
+    if (git_checkout_index(m_repo, nullptr, &opts) < 0) {
+        setError(QStringLiteral("Failed to checkout 'theirs' version for '%1'").arg(path));
+        return false;
+    }
+    return stageFile(path); // Mark as resolved by staging
+}
+
 bool GitManager::addToGitignore(const QString &path)
 {
     if (!ensureOpen() || path.isEmpty()) return false;
