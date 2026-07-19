@@ -509,7 +509,7 @@ bool GitManager::unstageAll()
 //  Faz 2 — Commit
 // ═══════════════════════════════════════════════════════════════════
 
-bool GitManager::commit(const QString &message)
+bool GitManager::commit(const QString &message, bool amend)
 {
     if (!ensureOpen()) return false;
 
@@ -564,10 +564,30 @@ bool GitManager::commit(const QString &message)
         git_commit *parent = nullptr;
         git_reference_peel((git_object **)&parent, headRef, GIT_OBJECT_COMMIT);
 
-        err = git_commit_create_v(&commitOid, m_repo, "HEAD",
-                                  sig, sig, "UTF-8",
-                                  msgBytes.constData(),
-                                  tree, 1, parent);
+        if (amend) {
+            // Amend: replace HEAD commit, use HEAD's parent(s)
+            int parentCount = git_commit_parentcount(parent);
+            if (parentCount == 0) {
+                // Amending initial commit
+                err = git_commit_create_v(&commitOid, m_repo, "HEAD",
+                                          sig, sig, "UTF-8",
+                                          msgBytes.constData(),
+                                          tree, 0);
+            } else {
+                git_commit *grandparent = nullptr;
+                git_commit_parent(&grandparent, parent, 0);
+                err = git_commit_create_v(&commitOid, m_repo, "HEAD",
+                                          sig, sig, "UTF-8",
+                                          msgBytes.constData(),
+                                          tree, 1, grandparent);
+                git_commit_free(grandparent);
+            }
+        } else {
+            err = git_commit_create_v(&commitOid, m_repo, "HEAD",
+                                      sig, sig, "UTF-8",
+                                      msgBytes.constData(),
+                                      tree, 1, parent);
+        }
 
         git_commit_free(parent);
         git_reference_free(headRef);

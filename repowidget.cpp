@@ -35,6 +35,7 @@
 #include <QHeaderView>
 #include <QDir>
 #include <QTimer>
+#include <QCheckBox>
 
 // âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 //  Construction / Destruction
@@ -110,35 +111,52 @@ void RepoWidget::setupCentralWidget() {
     stageBtnLayout->addWidget(stageAllBtn);
     stageBtnLayout->addWidget(unstageAllBtn);
 
+    // ── Left side: file changes tree + stage buttons ──
+    QWidget *fileChangesWidget = new QWidget;
+    QVBoxLayout *fileChangesLayout = new QVBoxLayout(fileChangesWidget);
+    fileChangesLayout->setContentsMargins(0, 0, 0, 0);
+    fileChangesLayout->setSpacing(2);
+    fileChangesLayout->addWidget(m_localChangesTree, 1);
+    fileChangesLayout->addLayout(stageBtnLayout);
+
+    // ── Right side: compact commit panel ──
     QLabel *commitLabel = new QLabel("Commit Message:");
+    commitLabel->setStyleSheet("font-weight: bold; padding: 2px;");
+
     m_commitEdit = new QTextEdit;
     m_commitEdit->setPlaceholderText("Enter commit message...");
-    m_commitEdit->setMaximumHeight(80);
+
+    m_amendCheck = new QCheckBox("Amend last commit");
+    m_pushAfterCommitCheck = new QCheckBox("Push after commit");
+
     m_commitBtn = new QPushButton(QString::fromUtf8("\xe2\x9c\x93 Commit"));
-    m_commitBtn->setMinimumHeight(32);
-    m_commitBtn->setMaximumHeight(32);
+    m_commitBtn->setMinimumHeight(36);
+    m_commitBtn->setStyleSheet("font-weight: bold; font-size: 14px;");
 
     QVBoxLayout *commitPanelLayout = new QVBoxLayout;
-    commitPanelLayout->setContentsMargins(4, 4, 4, 4);
-    commitPanelLayout->setSpacing(4);
-    commitPanelLayout->addLayout(stageBtnLayout);
+    commitPanelLayout->setContentsMargins(6, 6, 6, 6);
+    commitPanelLayout->setSpacing(6);
     commitPanelLayout->addWidget(commitLabel);
     commitPanelLayout->addWidget(m_commitEdit, 1);
+    commitPanelLayout->addWidget(m_amendCheck);
+    commitPanelLayout->addWidget(m_pushAfterCommitCheck);
     commitPanelLayout->addWidget(m_commitBtn);
 
     m_commitPanelWidget = new QWidget;
     m_commitPanelWidget->setLayout(commitPanelLayout);
-    m_commitPanelWidget->setMaximumHeight(160);
+    m_commitPanelWidget->setMinimumWidth(220);
+    m_commitPanelWidget->setMaximumWidth(320);
 
-    QSplitter *centerSplitter = new QSplitter(Qt::Vertical);
-    centerSplitter->addWidget(m_localChangesTree);
-    centerSplitter->addWidget(m_commitPanelWidget);
-    centerSplitter->setStretchFactor(0, 7);
-    centerSplitter->setStretchFactor(1, 3);
+    // ── Horizontal splitter: file changes | commit panel ──
+    QSplitter *localContentSplitter = new QSplitter(Qt::Horizontal);
+    localContentSplitter->addWidget(fileChangesWidget);
+    localContentSplitter->addWidget(m_commitPanelWidget);
+    localContentSplitter->setStretchFactor(0, 7);
+    localContentSplitter->setStretchFactor(1, 3);
 
     QSplitter *localTopSplitter = new QSplitter(Qt::Horizontal);
     localTopSplitter->addWidget(m_dirTree);
-    localTopSplitter->addWidget(centerSplitter);
+    localTopSplitter->addWidget(localContentSplitter);
     localTopSplitter->setStretchFactor(0, 2);
     localTopSplitter->setStretchFactor(1, 8);
 
@@ -641,10 +659,17 @@ void RepoWidget::doCommit()
         return;
     }
 
-    if (m_git->commit(msg)) {
+    bool amend = m_amendCheck->isChecked();
+
+    if (m_git->commit(msg, amend)) {
         m_commitEdit->clear();
+        m_amendCheck->setChecked(false);
         refreshAll();
-        emit statusMessage(QStringLiteral("Commit successful!"));
+        emit statusMessage(amend ? QStringLiteral("Amend commit successful!") : QStringLiteral("Commit successful!"));
+        
+        if (m_pushAfterCommitCheck->isChecked()) {
+            doPush();
+        }
     }
 }
 

@@ -114,7 +114,7 @@ public:
     bool stageHunk(const QString &patchText);
     bool discardFileChanges(const QString &path);
     bool addToGitignore(const QString &path);
-    bool commit(const QString &message);
+    bool commit(const QString &message, bool amend = false);
 
     /* ── Push / Pull / Fetch (Faz 2 & 6) ─────────────── */
     bool push(const QString &remoteName = QStringLiteral("origin"));

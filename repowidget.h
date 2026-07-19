@@ -18,6 +18,7 @@ class QToolBar;
 class QStackedWidget;
 class QTreeView;
 class QFileSystemModel;
+class QCheckBox;
 
 class GitManager;
 class DiffViewWidget;
@@ -120,6 +121,8 @@ private:
 
     QTextEdit      *m_commitEdit;
     QPushButton    *m_commitBtn;
+    QCheckBox      *m_amendCheck;
+    QCheckBox      *m_pushAfterCommitCheck;
     QSplitter      *m_mainSplitter;
     QSplitter      *m_leftSplitter;
     QSplitter      *m_centerTopSplitter;
