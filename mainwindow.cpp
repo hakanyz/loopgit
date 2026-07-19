@@ -58,7 +58,7 @@ MainWindow::~MainWindow() = default;
 
 void MainWindow::setupUi()
 {
-    setWindowTitle(QStringLiteral("GitZen"));
+    setWindowTitle(QStringLiteral("LoopGit"));
     resize(1280, 800);
 
     setupMenuBar();
@@ -127,7 +127,7 @@ void MainWindow::setupMenuBar()
 
     // Help
     QMenu *helpMenu = mb->addMenu(QStringLiteral("&Help"));
-    helpMenu->addAction(QStringLiteral("About GitZen"), this, &MainWindow::showAboutDialog);
+    helpMenu->addAction(QStringLiteral("About LoopGit"), this, &MainWindow::showAboutDialog);
 }
 
 // ─── Tool Bar ──────────────────────────────────────────────────────
@@ -138,21 +138,21 @@ void MainWindow::setupToolBar()
     m_toolBar->setMovable(false);
     m_toolBar->setToolButtonStyle(Qt::ToolButtonTextOnly);
     m_toolBar->setStyleSheet(QStringLiteral(
-        "QToolBar { padding: 4px; border-bottom: 1px solid #2D2D2D; background-color: #1E1E1E; }"
-        "QToolButton { margin: 0 4px; padding: 6px 14px; font-size: 13px; font-weight: bold; border-radius: 6px; background-color: transparent; border: none; color: #E0E0E0; }"
-        "QToolButton:hover { background-color: rgba(255, 255, 255, 0.1); }"
-        "QToolButton:pressed { background-color: rgba(255, 255, 255, 0.15); }"
+        "QToolBar { padding: 8px; border-bottom: 1px solid #252526; background-color: #1E1E1E; }"
+        "QToolButton { margin: 0 5px; padding: 6px 16px; font-size: 13px; font-weight: bold; border-radius: 5px; background-color: #2D3139; border: none; color: #FFFFFF; }"
+        "QToolButton:hover { background-color: #3E4451; }"
+        "QToolButton:pressed { background-color: #1E222A; }"
         "QToolButton:checked { background-color: #094771; color: white; }"
         "QComboBox { margin: 0 10px; padding: 4px 10px; border: 1px solid #444; border-radius: 6px; min-width: 150px; background-color: #252526; color: white; }"
         "QComboBox:hover { border: 1px solid #007ACC; }"
         "QComboBox::drop-down { border: none; }"
     ));
 
-    m_actLocalFiles = new QAction(QStringLiteral("Local Files"), this);
+    m_actLocalFiles = new QAction(QStringLiteral("📁 Local Files"), this);
     m_actLocalFiles->setCheckable(true);
     m_actLocalFiles->setChecked(true); // Default
 
-    m_actHistory = new QAction(QStringLiteral("History"), this);
+    m_actHistory = new QAction(QStringLiteral("🕒 History"), this);
     m_actHistory->setCheckable(true);
 
     QActionGroup *perspectiveGroup = new QActionGroup(this);
@@ -181,31 +181,31 @@ void MainWindow::setupToolBar()
 
     m_toolBar->addSeparator();
 
-    m_actFetch->setText("Fetch");
+    m_actFetch->setText("⟳ Fetch");
     m_toolBar->addAction(m_actFetch);
 
-    m_actPull->setText("Pull");
+    m_actPull->setText("↓ Pull");
     m_toolBar->addAction(m_actPull);
 
-    m_actPush->setText("Push");
+    m_actPush->setText("↑ Push");
     m_toolBar->addAction(m_actPush);
     m_toolBar->addSeparator();
 
-    QAction *actStash = new QAction(QStringLiteral("Stash"), this);
+    QAction *actStash = new QAction(QStringLiteral("📦 Stash"), this);
     m_toolBar->addAction(actStash);
     
-    QAction *actPop = new QAction(QStringLiteral("Pop Stash"), this);
+    QAction *actPop = new QAction(QStringLiteral("📤 Pop Stash"), this);
     m_toolBar->addAction(actPop);
     m_toolBar->addSeparator();
 
-    QAction *actCherry = new QAction(QStringLiteral("Cherry-Pick"), this);
+    QAction *actCherry = new QAction(QStringLiteral("🍒 Cherry-Pick"), this);
     m_toolBar->addAction(actCherry);
 
-    QAction *actRevertBtn = new QAction(QStringLiteral("Revert"), this);
+    QAction *actRevertBtn = new QAction(QStringLiteral("↩️ Revert"), this);
     m_toolBar->addAction(actRevertBtn);
     m_toolBar->addSeparator();
 
-    m_actRefresh->setText("Refresh");
+    m_actRefresh->setText("⟲ Refresh");
     m_toolBar->addAction(m_actRefresh);
 
     // Push Sync Status Label to the right
@@ -1143,7 +1143,7 @@ void MainWindow::cloneRepository()
 
         if (url.isEmpty() || dest.isEmpty()) return;
 
-        QSettings settings("MyCompany", "GitZen");
+        QSettings settings("MyCompany", "LoopGit");
         m_git->setCredentials(settings.value("github/username", "").toString(), settings.value("github/token", "").toString());
 
         QProgressDialog progress("Cloning repository...", "Cancel", 0, 0, this);
@@ -1165,7 +1165,7 @@ void MainWindow::cloneRepository()
 
 void MainWindow::openCredentials()
 {
-    QSettings settings("MyCompany", "GitZen");
+    QSettings settings("MyCompany", "LoopGit");
 
     QDialog dialog(this);
     dialog.setWindowTitle("GitHub Credentials");
@@ -1456,7 +1456,7 @@ void MainWindow::showCommitContextMenu(const QPoint &pos)
 void MainWindow::showAboutDialog()
 {
     QMessageBox aboutBox(this);
-    aboutBox.setWindowTitle(QStringLiteral("About GitZen"));
+    aboutBox.setWindowTitle(QStringLiteral("About LoopGit"));
     QImage logo(":/resources/logo.png");
     logo = logo.convertToFormat(QImage::Format_ARGB32);
     float cx = logo.width() / 2.0f;
@@ -1475,7 +1475,7 @@ void MainWindow::showAboutDialog()
     aboutBox.setIconPixmap(QPixmap::fromImage(logo).scaled(64, 64, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     aboutBox.setTextFormat(Qt::RichText);
     aboutBox.setText(QStringLiteral(
-        "<h3>GitZen v0.1.0</h3>"
+        "<h3>LoopGit v0.1.0</h3>"
         "<p>A fast, native, and zen-like Git GUI Client.</p>"
         "<p>Built with <b>C++</b>, <b>Qt6</b>, and <b>libgit2</b>.</p>"
         "<p><i>Built with a lot of coffee ☕ and ❤️ by Hakan.</i></p>"
