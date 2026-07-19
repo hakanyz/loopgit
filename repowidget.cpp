@@ -282,7 +282,7 @@ void RepoWidget::connectSignals()
         }
         QString path = item->data(0, Qt::UserRole).toString();
         
-        static const QStringList binExts = {"pdf", "png", "jpg", "jpeg", "gif", "exe", "dll", "so", "bin", "zip", "tar", "gz", "mp4", "mp3", "obj", "o", "a", "lib", "ttf", "woff"};
+        static const QStringList binExts = {"pdf", "png", "jpg", "jpeg", "gif", "exe", "dll", "so", "bin", "zip", "tar", "gz", "mp4", "mp3", "obj", "o", "a", "lib", "ttf", "woff", "hex", "elf", "map", "out"};
         if (binExts.contains(QFileInfo(path).suffix().toLower())) {
             m_localDiffView->setDiffText(QStringLiteral("(Binary file: %1)").arg(path));
             return;
@@ -585,7 +585,7 @@ void RepoWidget::onCommitFileClicked(QTreeWidgetItem *item, int /*column*/)
     QString path = item->data(0, Qt::UserRole).toString();
     if (path.isEmpty()) return; // Ignored root items
     
-    static const QStringList binExts = {"pdf", "png", "jpg", "jpeg", "gif", "exe", "dll", "so", "bin", "zip", "tar", "gz", "mp4", "mp3", "obj", "o", "a", "lib", "ttf", "woff"};
+    static const QStringList binExts = {"pdf", "png", "jpg", "jpeg", "gif", "exe", "dll", "so", "bin", "zip", "tar", "gz", "mp4", "mp3", "obj", "o", "a", "lib", "ttf", "woff", "hex", "elf", "map", "out"};
     if (binExts.contains(QFileInfo(path).suffix().toLower())) {
         m_historyDiffView->setDiffText(QStringLiteral("(Binary file: %1)").arg(path));
         return;
