@@ -22,6 +22,7 @@
 #include <QDialog>
 #include <QPainter>
 #include <QTime>
+#include <QFrame>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -149,13 +150,16 @@ void MainWindow::setupToolBar()
     m_actHistory->setCheckable(true);
     m_toolBar->addAction(m_actHistory);
 
+    // ── Group 1: Views ──
     m_toolBar->addSeparator();
 
-    QWidget *actionGap = new QWidget(this);
-    actionGap->setFixedWidth(16);
-    actionGap->setStyleSheet("background: transparent;");
-    m_toolBar->addWidget(actionGap);
+    // ── Gap between Views and Sync ──
+    QWidget *gap1 = new QWidget(this);
+    gap1->setFixedWidth(24);
+    gap1->setStyleSheet("background: transparent;");
+    m_toolBar->addWidget(gap1);
 
+    // ── Group 2: Sync Operations ──
     m_actFetch = new QAction(QIcon(":/resources/icons/refresh.svg"), "Fetch", this);
     m_toolBar->addAction(m_actFetch);
 
@@ -165,13 +169,28 @@ void MainWindow::setupToolBar()
     m_actPush = new QAction(QIcon(":/resources/icons/push.svg"), "Push", this);
     m_toolBar->addAction(m_actPush);
 
-    m_toolBar->addSeparator();
-
     m_actRefresh = new QAction(QIcon(":/resources/icons/refresh.svg"), "Refresh", this);
     m_toolBar->addAction(m_actRefresh);
 
-    m_toolBar->addSeparator();
+    // ── Wide gap between Sync and Branch tools ──
+    QWidget *gap2 = new QWidget(this);
+    gap2->setFixedWidth(32);
+    gap2->setStyleSheet("background: transparent;");
+    m_toolBar->addWidget(gap2);
 
+    // ── Visible divider line ──
+    QFrame *divider = new QFrame(this);
+    divider->setFrameShape(QFrame::VLine);
+    divider->setStyleSheet("color: #505050; background: transparent;");
+    divider->setFixedHeight(40);
+    m_toolBar->addWidget(divider);
+
+    QWidget *gap3 = new QWidget(this);
+    gap3->setFixedWidth(32);
+    gap3->setStyleSheet("background: transparent;");
+    m_toolBar->addWidget(gap3);
+
+    // ── Group 3: Branch / GitFlow Operations ──
     m_actFeature = new QAction(QIcon(":/resources/icons/feature.svg"), "Feature", this);
     m_toolBar->addAction(m_actFeature);
 
@@ -187,13 +206,18 @@ void MainWindow::setupToolBar()
     m_actFinish = new QAction(QIcon(":/resources/icons/finish.svg"), "Finish", this);
     m_toolBar->addAction(m_actFinish);
 
-    m_toolBar->addSeparator();
+    // ── Gap before branch combo ──
+    QWidget *gap4 = new QWidget(this);
+    gap4->setFixedWidth(16);
+    gap4->setStyleSheet("background: transparent;");
+    m_toolBar->addWidget(gap4);
 
     m_branchCombo = new QComboBox(this);
     m_branchCombo->setMinimumWidth(120);
     m_toolBar->addWidget(m_branchCombo);
     m_branchCombo->setVisible(false);
 
+    // ── Spacer pushes status label to far right ──
     QWidget *spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     spacer->setStyleSheet("background: transparent;");
@@ -416,9 +440,7 @@ void MainWindow::openRepositoryPath(const QString &path)
 
     RepoWidget *rw = new RepoWidget(path, this);
     connect(rw, &RepoWidget::statusMessage, this, [this](const QString &msg) {
-        if (currentRepoWidget() == sender()) {
-            m_syncStatusLabel->setText(msg);
-        }
+        statusBar()->showMessage(msg, 5000);
     });
     connect(rw, &RepoWidget::errorOccurred, this, &MainWindow::showError);
     connect(rw, &RepoWidget::branchListChanged, this, [this](const QStringList &branches, const QString &currentBranch) {
@@ -428,6 +450,7 @@ void MainWindow::openRepositoryPath(const QString &path)
             m_branchCombo->addItems(branches);
             m_branchCombo->setCurrentText(currentBranch);
             m_updatingBranch = false;
+            m_syncStatusLabel->setText(currentBranch);
         }
     });
 
@@ -469,11 +492,6 @@ void MainWindow::onTabChanged(int index)
     RepoWidget *rw = qobject_cast<RepoWidget*>(m_tabWidget->widget(index));
     if (rw) {
         setWindowTitle(QString("LoopGit - %1").arg(rw->repoPath()));
-        connect(rw, &RepoWidget::statusMessage, this, [this, rw](const QString &msg) {
-            if (currentRepoWidget() == rw) {
-                m_syncStatusLabel->setText(msg);
-            }
-        });
     }
 }
 
