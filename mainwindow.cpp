@@ -172,6 +172,7 @@ void MainWindow::setupToolBar()
 
     QWidget *spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    spacer->setStyleSheet("background: transparent;");
     m_toolBar->addWidget(spacer);
 
     m_syncStatusLabel = new QLabel(this);
