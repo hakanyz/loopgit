@@ -30,6 +30,7 @@
 #include <QTimer>
 #include <QSystemTrayIcon>
 #include <QCloseEvent>
+#include <QProcess>
 #include <QTableWidget>
 #include <QHeaderView>
 
@@ -275,6 +276,11 @@ void MainWindow::setupToolBar()
     m_actRefresh->setToolTip("Refresh repository status");
     m_toolBar->addAction(m_actRefresh);
 
+    m_actTerminal = new QAction(QIcon(":/resources/icons/terminal.svg"), "Terminal", this);
+    m_actTerminal->setShortcut(QKeySequence("Ctrl+T"));
+    m_actTerminal->setToolTip("Open Terminal in repository directory (Ctrl+T)");
+    m_toolBar->addAction(m_actTerminal);
+
     // ── Wide gap between Sync and Branch tools ──
     QWidget *gap2 = new QWidget(this);
     gap2->setFixedWidth(32);
@@ -337,6 +343,23 @@ void MainWindow::setupToolBar()
     connect(m_actFetch, &QAction::triggered, this, [this]() { if (auto rw = currentRepoWidget()) rw->doFetch(); });
     connect(m_actPull, &QAction::triggered, this, [this]() { if (auto rw = currentRepoWidget()) rw->doPull(); });
     connect(m_actPush, &QAction::triggered, this, [this]() { if (auto rw = currentRepoWidget()) rw->doPush(); });
+
+    connect(m_actTerminal, &QAction::triggered, this, [this]() {
+        if (auto rw = currentRepoWidget()) {
+            QString workingDir = rw->repoPath();
+            if (workingDir.isEmpty()) return;
+#ifdef Q_OS_WIN
+            QProcess::startDetached("powershell.exe", QStringList(), workingDir);
+#elif defined(Q_OS_MAC)
+            QStringList args;
+            args << "-e" << QString("tell application \"Terminal\" to do script \"cd '%1'\"").arg(workingDir)
+                 << "-e" << "tell application \"Terminal\" to activate";
+            QProcess::startDetached("osascript", args);
+#else
+            QProcess::startDetached("x-terminal-emulator", QStringList(), workingDir);
+#endif
+        }
+    });
 
     connect(m_actFeature, &QAction::triggered, this, [this]() { if(auto rw = currentRepoWidget()) rw->startGitFlowBranch("feature/"); });
     connect(m_actBugfix, &QAction::triggered, this, [this]() { if(auto rw = currentRepoWidget()) rw->startGitFlowBranch("bugfix/"); });

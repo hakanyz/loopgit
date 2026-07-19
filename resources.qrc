@@ -7,6 +7,8 @@
         <file>resources/icons/submodule.svg</file>
         <file>resources/icons/pull.svg</file>
         <file>resources/icons/push.svg</file>
+        <file>resources/icons/fetch.svg</file>
+        <file>resources/icons/terminal.svg</file>
         <file>resources/icons/stash.svg</file>
         <file>resources/icons/pop.svg</file>
         <file>resources/icons/cherry.svg</file>

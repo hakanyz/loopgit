@@ -28,7 +28,6 @@ private slots:
     void cloneRepository();
     void onTabChanged(int index);
     void updateBranchCombo();
-    void onBranchComboActivated(int index);
     void showAboutDialog();
     void showShortcutsDialog();
     void openCredentials();
@@ -48,7 +47,6 @@ private:
     QWidget    *m_welcomeWidget;
     
     QToolBar   *m_toolBar;
-    QComboBox  *m_branchCombo;
     bool       m_updatingBranch = false;
 
     // Actions
@@ -60,6 +58,7 @@ private:
     QAction *m_actLocalFiles;
     QAction *m_actHistory;
     QAction *m_actRefresh;
+    QAction *m_actTerminal;
     QAction *m_actStageAll;
     QAction *m_actUnstageAll;
     QAction *m_actPull;
