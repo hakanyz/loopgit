@@ -19,6 +19,7 @@ class QStackedWidget;
 class QTreeView;
 class QFileSystemModel;
 class QCheckBox;
+class QLineEdit;
 
 class GitManager;
 class DiffViewWidget;
@@ -120,6 +121,7 @@ private:
     // History Perspective
     QTreeWidget    *m_branchesTree;
     QTreeWidget    *m_historyFilesTree;
+    QLineEdit      *m_historyFileFilter;
     DiffViewWidget *m_historyDiffView;
     QTableView     *m_logTable;
     CommitGraphModel *m_logModel;

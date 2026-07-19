@@ -236,11 +236,17 @@ void RepoWidget::setupCentralWidget() {
     m_commitDetailsLabel->setStyleSheet("padding: 8px; background-color: #252526; border-bottom: 1px solid #3C3C3C;");
     m_commitDetailsLabel->setText("<span style='color:#808080;'>Select a commit to view details</span>");
 
+    m_historyFileFilter = new QLineEdit;
+    m_historyFileFilter->setPlaceholderText("Filter files...");
+    m_historyFileFilter->setClearButtonEnabled(true);
+    m_historyFileFilter->setStyleSheet("QLineEdit { padding: 4px; background-color: #1E1E1E; border: 1px solid #3C3C3C; }");
+
     QWidget *historyRightWidget = new QWidget;
     QVBoxLayout *hrLayout = new QVBoxLayout(historyRightWidget);
     hrLayout->setContentsMargins(0, 0, 0, 0);
     hrLayout->setSpacing(0);
     hrLayout->addWidget(m_commitDetailsLabel);
+    hrLayout->addWidget(m_historyFileFilter);
     hrLayout->addWidget(m_historyFilesTree);
 
     QSplitter *historyTopSplitter = new QSplitter(Qt::Horizontal);
@@ -293,6 +299,16 @@ void RepoWidget::connectSignals()
 
     connect(m_localChangesTree, &QTreeWidget::itemDoubleClicked,
             this, &RepoWidget::onFileItemDoubleClicked);
+
+    connect(m_historyFileFilter, &QLineEdit::textChanged, this, [this](const QString &text) {
+        for (int i = 0; i < m_historyFilesTree->topLevelItemCount(); ++i) {
+            QTreeWidgetItem *item = m_historyFilesTree->topLevelItem(i);
+            QString fileName = item->text(1);
+            QString filePath = item->text(2);
+            bool match = fileName.contains(text, Qt::CaseInsensitive) || filePath.contains(text, Qt::CaseInsensitive);
+            item->setHidden(!match);
+        }
+    });
 
     connect(m_localChangesTree, &QTreeWidget::itemClicked,
             this, [this](QTreeWidgetItem *item, int){
