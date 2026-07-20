@@ -245,6 +245,7 @@ void DiffEditor::leaveEvent(QEvent *event)
 #include <QHBoxLayout>
 #include <QSplitter>
 #include <QLabel>
+#include "diffsyntaxhighlighter.h"
 
 DiffViewWidget::DiffViewWidget(QWidget *parent)
     : QWidget(parent)
@@ -277,12 +278,17 @@ DiffViewWidget::DiffViewWidget(QWidget *parent)
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->addWidget(m_splitter);
-    
+    setLayout(mainLayout);
+
     // Synchronize scroll bars
     connect(m_leftEditor->verticalScrollBar(), &QScrollBar::valueChanged,
             m_rightEditor->verticalScrollBar(), &QScrollBar::setValue);
     connect(m_rightEditor->verticalScrollBar(), &QScrollBar::valueChanged,
             m_leftEditor->verticalScrollBar(), &QScrollBar::setValue);
+
+    // Attach syntax highlighters
+    new DiffSyntaxHighlighter(m_leftEditor->document());
+    new DiffSyntaxHighlighter(m_rightEditor->document());
 
     connect(m_leftEditor, &DiffEditor::stageHunkRequested, this, &DiffViewWidget::onLeftEditorStageHunk);
 }

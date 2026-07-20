@@ -82,6 +82,8 @@ set(PROJECT_SOURCES
     comparedialog.cpp
     appsettingsdialog.h
     appsettingsdialog.cpp
+    diffsyntaxhighlighter.h
+    diffsyntaxhighlighter.cpp
     resources.qrc
     app.rc
 )
