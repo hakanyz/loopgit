@@ -21,6 +21,7 @@
 #include <QDialogButtonBox>
 #include <QDialog>
 #include "settingsdialog.h"
+#include "appsettingsdialog.h"
 #include "reflogdialog.h"
 #include <QScrollArea>
 #include <QPainter>
@@ -209,7 +210,12 @@ void MainWindow::setupMenuBar()
     fileMenu->addSeparator();
     m_actCredentials = fileMenu->addAction("Credentials...", this, &MainWindow::openCredentials);
     
-    QAction *actSettings = fileMenu->addAction("Settings...", this, [this]() {
+    QAction *actAppConfig = fileMenu->addAction("Application Settings...", this, [this]() {
+        AppSettingsDialog dlg(this);
+        dlg.exec();
+    });
+
+    QAction *actSettings = fileMenu->addAction("Repository Settings...", this, [this]() {
         if (auto rw = currentRepoWidget()) {
             SettingsDialog dlg(rw->gitManager(), this);
             dlg.exec();

@@ -80,6 +80,8 @@ set(PROJECT_SOURCES
     settingsdialog.cpp
     reflogdialog.cpp
     comparedialog.cpp
+    appsettingsdialog.h
+    appsettingsdialog.cpp
     resources.qrc
     app.rc
 )
