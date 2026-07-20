@@ -137,7 +137,7 @@ void MainWindow::setupWelcomeScreen()
     welcomeLayout->setAlignment(Qt::AlignCenter);
 
     QLabel *logoLabel = new QLabel(this);
-    QPixmap logoPix = QIcon(":/resources/icons/logo.svg").pixmap(400, 400);
+    QPixmap logoPix = QIcon(":/resources/icons/logo2.svg").pixmap(400, 400);
     if (!logoPix.isNull()) {
         logoLabel->setPixmap(logoPix);
         logoLabel->setAlignment(Qt::AlignCenter);
