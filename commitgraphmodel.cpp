@@ -1,5 +1,8 @@
 #include "commitgraphmodel.h"
 #include <QBrush>
+#include <QDateTime>
+#include <QColor>
+#include <QSet>
 
 static const QList<QColor> GRAPH_COLORS = {
     QColor("#F14C4C"), // Red
@@ -118,13 +121,19 @@ void CommitGraphModel::computeGraph()
         GraphCommit &gc = m_data[i];
         const GraphCommit &prev = m_data[i - 1];
 
+        QSet<int> seenLanes;
         for (const GraphEdge &edge : prev.graph.edgesOut) {
+            if (seenLanes.contains(edge.toLane))
+                continue;
+            seenLanes.insert(edge.toLane);
+
             GraphEdge inEdge;
             // The previous cell's edgesOut completed the lane shift at its bottom boundary.
             // So the incoming edge for this cell starts AND ends at the new lane.
             inEdge.fromLane = edge.toLane; 
             inEdge.toLane = edge.toLane;
-            inEdge.color = edge.color;
+            // Once merged at the boundary, the line takes the color of its lane
+            inEdge.color = colorForLane(edge.toLane);
             gc.graph.edgesIn.append(inEdge);
         }
     }
