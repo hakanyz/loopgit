@@ -765,7 +765,7 @@ void MainWindow::showShortcutsDialog()
 {
     QDialog dlg(this);
     dlg.setWindowTitle("Keyboard Shortcuts");
-    dlg.resize(480, 400);
+    dlg.resize(650, 400);
 
     QVBoxLayout *layout = new QVBoxLayout(&dlg);
 
