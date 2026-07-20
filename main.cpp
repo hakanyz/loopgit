@@ -15,24 +15,8 @@ int main(int argc, char *argv[])
     app.setOrganizationName(QStringLiteral("MyCompany"));
     app.setQuitOnLastWindowClosed(false);
 
-    // Make the white background transparent by masking it to a perfect circle
-    QImage logo(":/resources/logo.png");
-    logo = logo.convertToFormat(QImage::Format_ARGB32);
-    float cx = logo.width() / 2.0f;
-    float cy = logo.height() / 2.0f;
-    float radius = cx - 2.0f; // slight padding
-    
-    for (int y = 0; y < logo.height(); ++y) {
-        for (int x = 0; x < logo.width(); ++x) {
-            float dx = x - cx;
-            float dy = y - cy;
-            if (dx*dx + dy*dy > radius*radius) {
-                logo.setPixelColor(x, y, Qt::transparent);
-            }
-        }
-    }
-    
-    app.setWindowIcon(QIcon(QPixmap::fromImage(logo)));
+    // Load the pre-rendered squircle (rounded rectangle) icon directly
+    app.setWindowIcon(QIcon(":/resources/app_icon.ico"));
 
     // Initialize libgit2
     if (!GitManager::initialize()) {

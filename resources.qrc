@@ -21,5 +21,6 @@
         <file>resources/icons/hotfix.svg</file>
         <file>resources/icons/finish.svg</file>
         <file>resources/icons/logo.svg</file>
+        <file>resources/app_icon.ico</file>
     </qresource>
 </RCC>
