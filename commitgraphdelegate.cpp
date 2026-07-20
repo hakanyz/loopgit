@@ -111,12 +111,12 @@ void CommitGraphDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
             // Straight line
             path.lineTo(laneX(edge.toLane), centerY);
         } else {
-            // Angular/Straight diagonal curve
+            // Smooth Bézier curve
             int startX = laneX(edge.fromLane);
             int endX   = laneX(edge.toLane);
-            path.lineTo(startX, topY + 4);
-            path.lineTo(endX, centerY - 4);
-            path.lineTo(endX, centerY);
+            path.cubicTo(startX, topY + (centerY - topY) / 2.0,
+                         endX,   topY + (centerY - topY) / 2.0,
+                         endX,   centerY);
         }
         painter->drawPath(path);
     }
@@ -139,20 +139,50 @@ void CommitGraphDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
             // Straight line
             path.lineTo(laneX(edge.toLane), bottomY);
         } else {
-            // Angular/Straight diagonal curve
+            // Smooth Bézier curve
             int startX = laneX(edge.fromLane);
             int endX   = laneX(edge.toLane);
-            path.lineTo(startX, centerY + 4);
-            path.lineTo(endX, bottomY - 4);
-            path.lineTo(endX, bottomY);
+            path.cubicTo(startX, centerY + (bottomY - centerY) / 2.0,
+                         endX,   centerY + (bottomY - centerY) / 2.0,
+                         endX,   bottomY);
         }
         painter->drawPath(path);
     }
 
-    // Draw the commit node (dot) - Hollow
-    painter->setPen(QPen(node.color, 2));
-    painter->setBrush(QColor("#1E1E1E")); // Dark background to make it hollow
-    painter->drawEllipse(QPoint(centerX, centerY), dotRadius + 1, dotRadius + 1);
+    bool isMerge = (node.edgesOut.size() > 1);
+    
+    QModelIndex msgIndex = index.siblingAtColumn(CommitGraphModel::ColMessage);
+    QStringList refs = msgIndex.data(Qt::UserRole + 1).toStringList();
+    bool isHead = false;
+    for (const QString &r : refs) {
+        if (r == "HEAD" || r.startsWith("HEAD ->")) {
+            isHead = true;
+            break;
+        }
+    }
+
+    if (isHead) {
+        // Draw a subtle glow for HEAD
+        painter->setPen(Qt::NoPen);
+        QColor glowColor = node.color;
+        glowColor.setAlpha(80);
+        painter->setBrush(glowColor);
+        painter->drawEllipse(QPoint(centerX, centerY), dotRadius + 4, dotRadius + 4);
+        
+        painter->setPen(QPen(node.color, 3));
+        painter->setBrush(QColor("#1E1E1E")); // Dark background
+        painter->drawEllipse(QPoint(centerX, centerY), dotRadius + 1, dotRadius + 1);
+    } else if (isMerge) {
+        // Solid fill for merge commits
+        painter->setPen(QPen(node.color, 2));
+        painter->setBrush(node.color); 
+        painter->drawEllipse(QPoint(centerX, centerY), dotRadius + 1, dotRadius + 1);
+    } else {
+        // Standard hollow dot
+        painter->setPen(QPen(node.color, 2));
+        painter->setBrush(QColor("#1E1E1E"));
+        painter->drawEllipse(QPoint(centerX, centerY), dotRadius + 1, dotRadius + 1);
+    }
 
     painter->restore();
 }
