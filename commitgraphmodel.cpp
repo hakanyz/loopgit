@@ -120,7 +120,9 @@ void CommitGraphModel::computeGraph()
 
         for (const GraphEdge &edge : prev.graph.edgesOut) {
             GraphEdge inEdge;
-            inEdge.fromLane = edge.fromLane;
+            // The previous cell's edgesOut completed the lane shift at its bottom boundary.
+            // So the incoming edge for this cell starts AND ends at the new lane.
+            inEdge.fromLane = edge.toLane; 
             inEdge.toLane = edge.toLane;
             inEdge.color = edge.color;
             gc.graph.edgesIn.append(inEdge);
