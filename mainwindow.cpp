@@ -427,6 +427,10 @@ void MainWindow::applyDarkTheme()
             background-color: #2D2D2D;
             color: #D4D4D4;
             border: 1px solid #3C3C3C;
+            padding: 4px 0px;
+        }
+        QMenu::item {
+            padding: 6px 32px 6px 24px;
         }
         QMenu::item:selected {
             background-color: #094771;
