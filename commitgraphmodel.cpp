@@ -66,6 +66,14 @@ void CommitGraphModel::computeGraph()
         gc.graph.lane = lane;
         gc.graph.color = colorForLane(lane);
 
+        // Record which lanes were incoming to this cell
+        QSet<int> incomingLanes;
+        for (int l = 0; l < activeLanes.size(); ++l) {
+            if (!activeLanes[l].isEmpty()) {
+                incomingLanes.insert(l);
+            }
+        }
+
         // Calculate outgoing edges (to parents)
         // First parent stays in the same lane (usually).
         // Additional parents (merges) get new lanes or find existing.
@@ -106,7 +114,7 @@ void CommitGraphModel::computeGraph()
 
         // Draw passthrough lines for all other active lanes
         for (int l = 0; l < activeLanes.size(); ++l) {
-            if (!activeLanes[l].isEmpty() && l != lane) {
+            if (!activeLanes[l].isEmpty() && l != lane && incomingLanes.contains(l)) {
                 GraphEdge edge;
                 edge.fromLane = l;
                 edge.toLane = l;
