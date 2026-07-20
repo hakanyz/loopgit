@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
     app.setQuitOnLastWindowClosed(false);
 
     // Load the pre-rendered squircle (rounded rectangle) icon directly
-    app.setWindowIcon(QIcon(":/resources/loopgit_icon.ico"));
+    app.setWindowIcon(QIcon(":/resources/loopgit_radius_icon.ico"));
 
     // Initialize libgit2
     if (!GitManager::initialize()) {

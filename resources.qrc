@@ -21,6 +21,6 @@
         <file>resources/icons/hotfix.svg</file>
         <file>resources/icons/finish.svg</file>
         <file>resources/icons/logo.svg</file>
-        <file>resources/loopgit_icon.ico</file>
+        <file>resources/loopgit_radius_icon.ico</file>
     </qresource>
 </RCC>
