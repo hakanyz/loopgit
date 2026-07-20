@@ -7,6 +7,7 @@ DefaultDirName={autopf}\LoopGit
 DisableProgramGroupPage=yes
 OutputBaseFilename=LoopGit_Beta_1.0_Setup
 SetupIconFile=resources\app_icon.ico
+UninstallDisplayIcon={app}\LoopGit.exe
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
