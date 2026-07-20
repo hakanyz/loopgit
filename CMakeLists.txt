@@ -21,8 +21,8 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
 # ── Qt ────────────────────────────────────────────────────────────
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets Network)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Network)
+find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets Network Svg)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Network Svg)
 
 # ── libgit2 ───────────────────────────────────────────────────────
 # Strategy: try vcpkg/system first, fallback to FetchContent
@@ -100,6 +100,7 @@ endif()
 target_link_libraries(LoopGit PRIVATE
     Qt${QT_VERSION_MAJOR}::Widgets
     Qt${QT_VERSION_MAJOR}::Network
+    Qt${QT_VERSION_MAJOR}::Svg
     ${LIBGIT2_LIBRARIES}
 )
 
