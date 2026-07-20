@@ -18,6 +18,8 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 ; The main executable
 Source: "build\LoopGit.exe"; DestDir: "{app}"; Flags: ignoreversion
+; The App Icon for shortcuts
+Source: "resources\app_icon.ico"; DestDir: "{app}"; Flags: ignoreversion
 ; The Qt DLLs
 Source: "build\*.dll"; DestDir: "{app}"; Flags: ignoreversion
 ; Qt plugin directories
@@ -31,8 +33,8 @@ Source: "build\tls\*"; DestDir: "{app}\tls"; Flags: ignoreversion recursesubdirs
 Source: "build\translations\*"; DestDir: "{app}\translations"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{autoprograms}\LoopGit"; Filename: "{app}\LoopGit.exe"
-Name: "{autodesktop}\LoopGit"; Filename: "{app}\LoopGit.exe"; Tasks: desktopicon
+Name: "{autoprograms}\LoopGit"; Filename: "{app}\LoopGit.exe"; IconFilename: "{app}\app_icon.ico"
+Name: "{autodesktop}\LoopGit"; Filename: "{app}\LoopGit.exe"; IconFilename: "{app}\app_icon.ico"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\LoopGit.exe"; Description: "{cm:LaunchProgram,LoopGit}"; Flags: nowait postinstall skipifsilent
