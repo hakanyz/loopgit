@@ -96,7 +96,7 @@ void CommitGraphModel::computeGraph()
                 GraphEdge edge;
                 edge.fromLane = lane;
                 edge.toLane = pLane;
-                edge.color = colorForLane(pLane); // Edge takes the color of the parent's lane
+                edge.color = colorForLane(qMax(lane, pLane)); // Branch edges take the child's or parent's lane color, whichever is higher
                 gc.graph.edgesOut.append(edge);
             }
         }

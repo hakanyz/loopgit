@@ -105,18 +105,19 @@ void CommitGraphDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
         painter->setPen(QPen(edge.color, 2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
         
         QPainterPath path;
+        int endY = (edge.toLane == node.lane) ? centerY - dotRadius : centerY;
         path.moveTo(laneX(edge.fromLane), topY);
         
         if (edge.fromLane == edge.toLane) {
             // Straight line
-            path.lineTo(laneX(edge.toLane), centerY);
+            path.lineTo(laneX(edge.toLane), endY);
         } else {
             // Smooth Bézier curve
             int startX = laneX(edge.fromLane);
             int endX   = laneX(edge.toLane);
-            path.cubicTo(startX, topY + (centerY - topY) / 2.0,
-                         endX,   topY + (centerY - topY) / 2.0,
-                         endX,   centerY);
+            path.cubicTo(startX, topY + (endY - topY) / 2.0,
+                         endX,   topY + (endY - topY) / 2.0,
+                         endX,   endY);
         }
         painter->drawPath(path);
     }
@@ -133,7 +134,8 @@ void CommitGraphDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
         painter->setPen(QPen(edge.color, 2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
         
         QPainterPath path;
-        path.moveTo(laneX(edge.fromLane), centerY);
+        int startY = (edge.fromLane == node.lane) ? centerY + dotRadius : centerY;
+        path.moveTo(laneX(edge.fromLane), startY);
         
         if (edge.fromLane == edge.toLane) {
             // Straight line
@@ -142,8 +144,8 @@ void CommitGraphDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
             // Smooth Bézier curve
             int startX = laneX(edge.fromLane);
             int endX   = laneX(edge.toLane);
-            path.cubicTo(startX, centerY + (bottomY - centerY) / 2.0,
-                         endX,   centerY + (bottomY - centerY) / 2.0,
+            path.cubicTo(startX, startY + (bottomY - startY) / 2.0,
+                         endX,   startY + (bottomY - startY) / 2.0,
                          endX,   bottomY);
         }
         painter->drawPath(path);
