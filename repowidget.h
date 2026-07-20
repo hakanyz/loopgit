@@ -144,6 +144,7 @@ private:
 
     // File system watcher for auto-refresh
     QFileSystemWatcher *m_watcher;
+    QTimer *m_refreshTimer;
     QString m_repoPath;
 };
 

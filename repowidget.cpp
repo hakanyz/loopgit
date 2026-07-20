@@ -52,10 +52,14 @@ RepoWidget::RepoWidget(const QString &repoPath, QWidget *parent)
     , m_watcher(new QFileSystemWatcher(this))
     , m_logModel(new CommitGraphModel(this))
     , m_logDelegate(new CommitGraphDelegate(this))
+    , m_refreshTimer(new QTimer(this))
 {
     setupUi();
     connectSignals();
     
+    m_refreshTimer->setSingleShot(true);
+    connect(m_refreshTimer, &QTimer::timeout, this, &RepoWidget::refreshAll);
+
     if (m_git->openRepository(m_repoPath)) {
         QTimer::singleShot(0, this, &RepoWidget::refreshAll);
     } else {
@@ -1079,7 +1083,7 @@ void RepoWidget::mergeBranch()
 void RepoWidget::onRepoChanged(const QString & /*path*/)
 {
     // Debounce: refresh after a short delay to avoid rapid re-reads
-    QTimer::singleShot(500, this, &RepoWidget::refreshAll);
+    m_refreshTimer->start(500);
 }
 
 
