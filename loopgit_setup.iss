@@ -1,11 +1,11 @@
 [Setup]
 AppName=LoopGit
-AppVersion=1.1.7
+AppVersion=1.1.8
 AppPublisher=Hakan
 AppPublisherURL=https://github.com/hakanyz/loopgit
 DefaultDirName={autopf}\LoopGit
 DisableProgramGroupPage=yes
-OutputBaseFilename=LoopGit_1.1.7_Setup
+OutputBaseFilename=LoopGit_1.1.8_Setup
 SetupIconFile=resources\loopgit_radius_icon.ico
 UninstallDisplayIcon={app}\LoopGit.exe
 Compression=lzma
@@ -38,3 +38,23 @@ Name: "{autodesktop}\LoopGit"; Filename: "{app}\LoopGit.exe"; IconFilename: "{ap
 
 [Run]
 Filename: "{app}\LoopGit.exe"; Description: "{cm:LaunchProgram,LoopGit}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\LoopGit.exe"; Flags: nowait; Check: IsSilentAndRestart
+
+[Code]
+function CmdLineParamExists(const Value: string): Boolean;
+var
+  I: Integer;
+begin
+  Result := False;
+  for I := 1 to ParamCount do
+    if CompareText(ParamStr(I), Value) = 0 then
+    begin
+      Result := True;
+      Exit;
+    end;
+end;
+
+function IsSilentAndRestart: Boolean;
+begin
+  Result := WizardSilent() and CmdLineParamExists('/RESTART');
+end;
