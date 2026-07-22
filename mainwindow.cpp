@@ -215,7 +215,8 @@ void MainWindow::addNewHomeTab()
         recentLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
         
         QPushButton *btnClear = new QPushButton("Clear", this);
-        btnClear->setStyleSheet("padding: 2px 8px; font-size: 11px; background-color: #d32f2f; color: white; border-radius: 3px; border: none;");
+        btnClear->setStyleSheet("QPushButton { padding: 2px 8px; font-size: 11px; background-color: #2D2D30; color: #CCCCCC; border-radius: 3px; border: 1px solid #3C3C3C; } "
+                                "QPushButton:hover { background-color: #3E3E42; color: #FFFFFF; }");
         btnClear->setCursor(Qt::PointingHandCursor);
         btnClear->setFixedSize(50, 20);
         
