@@ -16,6 +16,14 @@ LoopGit is a native desktop application designed for speed and low resource usag
 * **Reflog & Blame**: Dedicated tools for inspecting line-by-line blame annotations and local pointer history.
 * **Keyboard Navigation**: Optimized workflows with global keyboard shortcuts.
 
+## Cross-Platform Architecture
+
+LoopGit is built from the ground up using **100% cross-platform technologies** (C++17, Qt6, and libgit2). 
+
+While our official pre-compiled releases and auto-updaters are currently focused on **Windows** (`.exe`), the source code is completely portable. Developers on **macOS** and **Linux** can easily clone the repository and compile the application natively without any code modifications.
+
+In the future, we plan to implement automated CI/CD pipelines (via GitHub Actions) to provide official `.dmg` (macOS) and `.AppImage` (Linux) releases alongside our Windows installers.
+
 ## Keyboard Shortcuts
 
 | Shortcut | Action |
