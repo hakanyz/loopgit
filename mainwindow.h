@@ -57,6 +57,7 @@ private:
     QTabWidget *m_tabWidget;
     QWidget    *m_welcomeWidget;
     QPushButton *m_btnReturnToTabs = nullptr;
+    int m_lastActiveTabIndex = 0;
     
     QToolBar   *m_toolBar;
     bool       m_updatingBranch = false;

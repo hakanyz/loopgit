@@ -63,19 +63,14 @@ void MainWindow::setupUi()
     m_tabWidget->setTabsClosable(true);
     m_tabWidget->setMovable(true);
 
-    QToolButton *btnNewTab = new QToolButton(this);
-    btnNewTab->setText("+");
-    btnNewTab->setToolTip("Open Welcome Screen (New Repository)");
-    btnNewTab->setStyleSheet("QToolButton { border: none; font-size: 20px; font-weight: bold; color: #CCCCCC; padding: 0 10px; }"
-                             "QToolButton:hover { color: #FFFFFF; background-color: #3C3C3C; }");
-    m_tabWidget->setCornerWidget(btnNewTab, Qt::TopRightCorner);
-
-    connect(btnNewTab, &QToolButton::clicked, this, [this]() {
-        if (m_btnReturnToTabs) m_btnReturnToTabs->show();
-        m_tabWidget->hide();
-        m_welcomeWidget->show();
-        m_toolBar->setEnabled(false);
-    });
+    QWidget *dummyTab = new QWidget(this);
+    int plusIndex = m_tabWidget->addTab(dummyTab, "+");
+    
+    QTabBar *tabBar = m_tabWidget->findChild<QTabBar *>();
+    if (tabBar) {
+        tabBar->setTabButton(plusIndex, QTabBar::RightSide, nullptr);
+        tabBar->setTabButton(plusIndex, QTabBar::LeftSide, nullptr);
+    }
     
     QWidget *centralContainer = new QWidget(this);
     QVBoxLayout *containerLayout = new QVBoxLayout(centralContainer);
@@ -94,7 +89,7 @@ void MainWindow::setupUi()
         QWidget *w = m_tabWidget->widget(index);
         m_tabWidget->removeTab(index);
         w->deleteLater();
-        if (m_tabWidget->count() == 0) {
+        if (m_tabWidget->count() <= 1) { // only the + tab is left
             if (m_btnReturnToTabs) m_btnReturnToTabs->hide();
             m_welcomeWidget->show();
             m_tabWidget->hide();
@@ -137,7 +132,22 @@ void MainWindow::setupUi()
         checkForUpdates(true);
     });
 
-    connect(m_tabWidget, &QTabWidget::currentChanged, this, &MainWindow::onTabChanged);
+    connect(m_tabWidget, &QTabWidget::currentChanged, this, [this](int index) {
+        if (m_tabWidget->count() > 1 && index == m_tabWidget->count() - 1) {
+            // + tab clicked
+            int prevIndex = m_lastActiveTabIndex;
+            if (prevIndex >= 0 && prevIndex < m_tabWidget->count() - 1) {
+                m_tabWidget->setCurrentIndex(prevIndex);
+            }
+            if (m_btnReturnToTabs) m_btnReturnToTabs->show();
+            m_tabWidget->hide();
+            m_welcomeWidget->show();
+            m_toolBar->setEnabled(false);
+        } else {
+            m_lastActiveTabIndex = index;
+            onTabChanged(index);
+        }
+    });
 
     m_tabWidget->hide();
     m_welcomeWidget->show();
@@ -672,8 +682,10 @@ void MainWindow::openRepositoryPath(const QString &path)
     QString tabName = QFileInfo(path).fileName();
     if (tabName.isEmpty()) tabName = path;
     
-    int index = m_tabWidget->addTab(rw, tabName);
+    // Insert before the + tab (which is at the end)
+    int index = m_tabWidget->insertTab(m_tabWidget->count() - 1, rw, tabName);
     m_tabWidget->setCurrentIndex(index);
+    m_lastActiveTabIndex = index;
     
     m_welcomeWidget->hide();
     m_tabWidget->show();
