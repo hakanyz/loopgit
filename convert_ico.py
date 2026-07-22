@@ -6,3 +6,4 @@ img = Image.open('resources/logo.png')
 icon_sizes = [(256, 256), (128, 128), (64, 64), (32, 32), (16, 16)]
 img.save('resources/logo.ico', format='ICO', sizes=icon_sizes)
 print("Saved logo.ico")
+ 

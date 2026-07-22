@@ -17,3 +17,4 @@ private:
 };
 
 #endif // BLAMEDIALOG_H
+ 

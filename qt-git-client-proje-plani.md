@@ -58,3 +58,4 @@ Faz 0-3 çalışıyorsa, günlük kullanım için SmartGit'e ihtiyaç duymadan:
 - Diff'i gözden geçirebiliyorsun
 
 Bu noktadan sonrası (branch yönetimi, commit graph) "nice to have."
+ 

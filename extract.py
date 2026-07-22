@@ -31,3 +31,4 @@ if diff_text:
     print(f'Extracted {len(deleted_lines)} deleted lines.')
 else:
     print('Diff text not found')
+ 

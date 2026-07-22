@@ -24,3 +24,4 @@ private:
 };
 
 #endif // APPSETTINGSDIALOG_H
+ 

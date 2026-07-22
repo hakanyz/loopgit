@@ -54,3 +54,4 @@ bool BranchDialog::shouldCheckout() const
 {
     return m_checkoutCheck->isChecked();
 }
+ 

@@ -22,3 +22,4 @@ foreach ($line in $diffLines) {
 }
 $deletedBlock | Set-Content "deleted_lines.txt"
 "Done. Lines: " + $deletedBlock.Count
+ 

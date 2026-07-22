@@ -1447,3 +1447,4 @@ void RepoWidget::showHistoryContextMenu(const QPoint &pos)
         dlg.exec();
     }
 }
+ 

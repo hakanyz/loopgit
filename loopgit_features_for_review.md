@@ -52,3 +52,4 @@ Below is the complete feature list implemented so far. Please review it to see i
 - **Settings Dialog**: UI to quickly configure Git `user.name` and `user.email`.
 - **System Tray**: App can minimize to the system tray for background availability.
 - **Modern Dark Theme**: Customized `#1E1E1E` style dark mode, matching VSCode/modern IDE aesthetics.
+ 

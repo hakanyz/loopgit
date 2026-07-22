@@ -130,3 +130,4 @@ install(TARGETS LoopGit
 if(QT_VERSION_MAJOR EQUAL 6)
     qt_finalize_executable(LoopGit)
 endif()
+ 

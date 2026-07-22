@@ -36,3 +36,4 @@ private:
     QPushButton *m_editRemoteBtn;
     QPushButton *m_removeRemoteBtn;
 };
+ 

@@ -475,3 +475,4 @@ void DiffViewWidget::onLeftEditorStageHunk(int blockNumber)
     }
 }
 
+ 

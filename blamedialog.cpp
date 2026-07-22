@@ -61,3 +61,4 @@ BlameDialog::BlameDialog(const QString &filePath, const QVector<BlameLine> &blam
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(m_table);
 }
+ 

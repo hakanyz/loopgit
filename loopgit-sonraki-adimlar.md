@@ -57,3 +57,4 @@ Uygulama çökerse/kapatılırsa yazılmakta olan commit mesajının otomatik ta
 
 ## Genel Değerlendirme
 En yüksek getiri/efor oranı: **conflict resolution + stash + interactive rebase** üçlüsü. Bunlar tamamlandığında araç günlük kullanımda gerçek anlamda SmartGit'in yerini alabilir; geri kalanı ihtiyaç çıktıkça eklenebilir.
+ 

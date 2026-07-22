@@ -40,3 +40,4 @@ private:
     QVBoxLayout *m_blocksLayout;
     class QPushButton *m_saveBtn;
 };
+ 

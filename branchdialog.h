@@ -24,3 +24,4 @@ private:
 };
 
 #endif // BRANCHDIALOG_H
+ 

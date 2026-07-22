@@ -84,3 +84,4 @@ void AppSettingsDialog::saveSettings()
 
     accept();
 }
+ 

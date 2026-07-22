@@ -29,3 +29,4 @@ private:
     QTreeWidget *m_fileList;
     DiffViewWidget *m_diffView;
 };
+ 

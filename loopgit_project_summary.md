@@ -51,3 +51,4 @@
 *You can share this document with Claude or another LLM and ask:*
 
 > "This is the current state of my custom C++/Qt6 Git client, LoopGit. We have a solid foundation with a great dark theme, GitFlow automation, and a custom commit graph. Based on this architecture and feature set, what advanced features, workflow optimizations, or UI/UX enhancements should we add next to make this a world-class Git client? Please suggest both low-hanging fruit and complex 'killer features'."
+ 

@@ -87,3 +87,4 @@ private:
 };
 
 #endif // DIFFVIEWWIDGET_H
+ 

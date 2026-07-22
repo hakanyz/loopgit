@@ -255,3 +255,4 @@ void ConflictResolverDialog::saveAndResolve()
     emit resolved();
     accept();
 }
+ 

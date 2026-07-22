@@ -168,3 +168,4 @@ void SettingsDialog::removeRemote()
         }
     }
 }
+ 

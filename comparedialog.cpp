@@ -100,3 +100,4 @@ void CompareDialog::onFileSelected(QTreeWidgetItem *current, QTreeWidgetItem *pr
     QString diffText = m_git->getTwoCommitsDiff(m_oid1, m_oid2, filePath);
     m_diffView->setDiffText(diffText);
 }
+ 

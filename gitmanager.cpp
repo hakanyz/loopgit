@@ -2032,3 +2032,4 @@ QVector<FileStatusEntry> GitManager::getTwoCommitsChangedFiles(const QString &oi
 
     return result;
 }
+ 

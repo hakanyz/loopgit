@@ -66,3 +66,4 @@ private:
 Q_DECLARE_METATYPE(GraphNode)
 
 #endif // COMMITGRAPHMODEL_H
+ 

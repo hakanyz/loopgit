@@ -72,3 +72,4 @@ public class IcoGenerator {
 Add-Type -TypeDefinition $code -ReferencedAssemblies System.Drawing
 [IcoGenerator]::ConvertToRoundedIco($pngPath, $icoPath)
 Write-Host "Rounded Icon generated successfully!"
+ 

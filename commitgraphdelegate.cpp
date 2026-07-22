@@ -188,3 +188,4 @@ void CommitGraphDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
 
     painter->restore();
 }
+ 

@@ -212,3 +212,4 @@ QVariant CommitGraphModel::headerData(int section, Qt::Orientation orientation, 
     }
     return QAbstractTableModel::headerData(section, orientation, role);
 }
+ 

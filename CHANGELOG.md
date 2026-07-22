@@ -19,3 +19,4 @@ This is the first feature-complete Beta release of LoopGit, offering a native, l
 - **Git Flow Integration**: dedicated shortcuts to start features, bugfixes, releases, and hotfixes.
 - **Tabs Support**: handle multiple active repositories simultaneously.
 - **Modern Dark Theme**: clean dark color palette based on IDE standards.
+ 

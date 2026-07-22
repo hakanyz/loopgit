@@ -23,3 +23,4 @@ private:
     QPushButton *m_closeBtn;
     QPushButton *m_refreshBtn;
 };
+ 
