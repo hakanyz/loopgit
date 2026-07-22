@@ -130,8 +130,14 @@ void MainWindow::setupUi()
 
     m_netManager = new QNetworkAccessManager(this);
     connect(m_trayIcon, &QSystemTrayIcon::messageClicked, this, &MainWindow::onTrayMessageClicked);
+    
+    connect(qApp, &QCoreApplication::aboutToQuit, this, [this]() {
+        if (!m_pendingUpdatePath.isEmpty()) {
+            QProcess::startDetached(m_pendingUpdatePath, QStringList() << "/SILENT" << "/FORCECLOSEAPPLICATIONS");
+        }
+    });
 
-    QTimer::singleShot(2000, this, [this]() {
+    QTimer::singleShot(1000, this, [this]() {
         checkForUpdates(true);
     });
 
@@ -1013,12 +1019,8 @@ void MainWindow::onUpdateCheckFinished(QNetworkReply *reply, bool silent)
         m_latestUpdateVersion = latestVersion;
         m_latestUpdateUrl = downloadUrl;
         
-        if (silent) {
-            m_trayIcon->showMessage("LoopGit Update Available", "Version " + latestVersion + " is available! Click here to download and install.", QSystemTrayIcon::Information, 10000);
-        } else {
-            if (QMessageBox::question(this, "Update Available", "LoopGit version " + latestVersion + " is available!\nDo you want to download and install it now?") == QMessageBox::Yes) {
-                startUpdateDownload();
-            }
+        if (QMessageBox::question(this, "Update Available", "LoopGit version " + latestVersion + " is available!\nDo you want to download it now?") == QMessageBox::Yes) {
+            startUpdateDownload();
         }
     } else {
         if (!silent) {
@@ -1081,11 +1083,27 @@ void MainWindow::onDownloadFinished(QNetworkReply *reply, const QString &downloa
         file.write(reply->readAll());
         file.close();
         
-        QMessageBox::information(this, "Download Complete", "The update has been downloaded. LoopGit will now restart to install the update.");
+        QMessageBox msgBox(this);
+        msgBox.setWindowTitle("Download Complete");
+        msgBox.setText("The update has been downloaded.");
+        msgBox.setInformativeText("When would you like to install it?");
         
-        QProcess::startDetached(downloadPath, QStringList() << "/SILENT" << "/FORCECLOSEAPPLICATIONS");
-        m_reallyQuit = true;
-        qApp->quit();
+        QPushButton *btnNow = msgBox.addButton("Install and Restart Now", QMessageBox::AcceptRole);
+        QPushButton *btnExit = msgBox.addButton("Install on Exit", QMessageBox::ApplyRole);
+        QPushButton *btnCancel = msgBox.addButton("Cancel", QMessageBox::RejectRole);
+        
+        msgBox.exec();
+        
+        if (msgBox.clickedButton() == btnNow) {
+            QProcess::startDetached(downloadPath, QStringList() << "/SILENT" << "/FORCECLOSEAPPLICATIONS");
+            m_reallyQuit = true;
+            qApp->quit();
+        } else if (msgBox.clickedButton() == btnExit) {
+            m_pendingUpdatePath = downloadPath;
+            QMessageBox::information(this, "Update Scheduled", "The update will be installed automatically when you close LoopGit.");
+        } else {
+            QFile::remove(downloadPath);
+        }
     } else {
         QMessageBox::warning(this, "Error", "Could not save the update file to " + downloadPath);
     }

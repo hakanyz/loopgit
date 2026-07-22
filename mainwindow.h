@@ -95,10 +95,10 @@ private:
     QNetworkAccessManager *m_netManager;
     QString m_latestUpdateVersion;
     QString m_latestUpdateUrl;
+    QString m_pendingUpdatePath;
 
 protected:
     void closeEvent(QCloseEvent *event) override;
 };
 
 #endif // MAINWINDOW_H
- 
