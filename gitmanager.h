@@ -105,19 +105,19 @@ public:
 
     QPair<int, int> getAheadBehind(const QString &localBranch);
 
-    /* ── Repository (Faz 0) ──────────────────────────── */
+    /* ── Repository ──────────────────────────── */
     bool    initRepository(const QString &path);
     bool    openRepository(const QString &path);
     void    closeRepository();
     bool    isOpen()    const;
     QString repoPath()  const;
 
-    /* ── Status & Log (Faz 1) ────────────────────────── */
+    /* ── Status & Log ────────────────────────── */
     QVector<FileStatusEntry> getFileStatus();
     QString                  getCurrentBranch();
     QVector<CommitInfo>      getLog(int maxCount = 100);
 
-    /* ── Stage / Unstage / Commit (Faz 2) ────────────── */
+    /* ── Stage / Unstage / Commit ────────────── */
     bool stageFile(const QString &path);
     bool unstageFile(const QString &path);
     bool stageAll();
@@ -127,16 +127,16 @@ public:
     bool addToGitignore(const QString &path);
     bool commit(const QString &message, bool amend = false);
     
-    /* ── Conflict Resolution (Faz 2) ─────────────────── */
+    /* ── Conflict Resolution ─────────────────── */
     bool resolveUsingOurs(const QString &path);
     bool resolveUsingTheirs(const QString &path);
 
-    /* ── History Rewrite (Faz 3 & 4) ─────────────────── */
+    /* ── History Rewrite ─────────────────── */
     bool squashCommits(const QString &baseCommitId, const QString &newMessage);
     bool cherryPick(const QString &commitId);
     bool revertCommit(const QString &commitId);
 
-    /* ── Push / Pull / Fetch (Faz 2 & 6) ─────────────── */
+    /* ── Push / Pull / Fetch ─────────────── */
     bool push(const QString &remoteName = QStringLiteral("origin"), bool force = false);
     bool pull(const QString &remoteName = QStringLiteral("origin"));
     bool fetch(const QString &remoteName = QStringLiteral("origin"));
@@ -159,15 +159,15 @@ public:
     };
     QVector<ReflogEntry> getReflog(const QString &refname = QStringLiteral("HEAD"));
 
-    /* ── Clone & Credentials (Faz 6) ─────────────────── */
+    /* ── Clone & Credentials ─────────────────── */
     void setCredentials(const QString &username, const QString &token);
     bool cloneRepository(const QString &url, const QString &localPath);
 
-    /* ── Diff (Faz 3) ────────────────────────────────── */
+    /* ── Diff ────────────────────────────────── */
     QString getWorkdirDiff(const QString &filePath = QString());
     QString getStagedDiff(const QString &filePath = QString());
     
-    /* ── Commit Details & Blame (Faz 4 & 5) ──────────── */
+    /* ── Commit Details & Blame ──────────── */
     QVector<FileStatusEntry> getCommitChangedFiles(const QString &commitId);
     QString getCommitDiff(const QString &commitId, const QString &filePath = QString());
     QString getTwoCommitsDiff(const QString &oid1, const QString &oid2, const QString &filePath = QString());
@@ -175,7 +175,7 @@ public:
     QVector<FileStatusEntry> getTwoCommitsChangedFiles(const QString &oid1, const QString &oid2);
     QVector<BlameLine> getBlame(const QString &filePath);
 
-    /* ── Branch & Tag management (Faz 4 & 5) ─────────── */
+    /* ── Branch & Tag management ─────────── */
     QVector<BranchInfo> getBranches();
     QVector<BranchInfo> getTags();
     bool createBranch(const QString &name);
@@ -185,7 +185,7 @@ public:
     bool deleteBranch(const QString &name);
     bool createTag(const QString &tagName, const QString &commitId, const QString &message = QString());
 
-    /* ── Stash & Advanced (Faz 3) ────────────────────── */
+    /* ── Stash & Advanced ────────────────────── */
     bool stashSave(const QString &message);
     bool stashPop();
     /* ── Error handling ──────────────────────────────── */

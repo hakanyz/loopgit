@@ -1,4 +1,4 @@
-#include "gitmanager.h"
+﻿#include "gitmanager.h"
 #include <git2.h>
 #include <QDir>
 #include <QFileInfo>
@@ -33,7 +33,7 @@ static int diffPrintCb(const git_diff_delta * /*delta*/,
 {
     QString *output = static_cast<QString *>(payload);
 
-    // "Professional Touch": Prevent freezing on massive diffs (e.g. huge text/hex files)
+    // Prevent freezing on massive diffs (e.g. huge text/hex files)
     const int MAX_DIFF_LENGTH = 100 * 1024; // 100 KB text limit per diff view
     if (output->length() > MAX_DIFF_LENGTH) {
         if (!output->endsWith("\n--- Diff output truncated (file too large) ---\n")) {
@@ -113,7 +113,7 @@ QString GitManager::lastError() const
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  Faz 0 — Repository open / close
+//  Repository open / close
 // ═══════════════════════════════════════════════════════════════════
 
 bool GitManager::initRepository(const QString &path)
@@ -170,7 +170,7 @@ bool GitManager::isOpen() const { return m_repo != nullptr; }
 QString GitManager::repoPath() const { return m_repoPath; }
 
 // ═══════════════════════════════════════════════════════════════════
-//  Faz 1 — Status
+//  Status
 // ═══════════════════════════════════════════════════════════════════
 
 QVector<FileStatusEntry> GitManager::getFileStatus()
@@ -240,7 +240,7 @@ QVector<FileStatusEntry> GitManager::getFileStatus()
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  Faz 1 — Current branch
+//  Current branch
 // ═══════════════════════════════════════════════════════════════════
 
 QString GitManager::getCurrentBranch()
@@ -274,7 +274,7 @@ QString GitManager::getCurrentBranch()
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  Faz 1 — Commit log
+//  Commit log
 // ═══════════════════════════════════════════════════════════════════
 
 QVector<CommitInfo> GitManager::getLog(int maxCount)
@@ -359,7 +359,7 @@ QVector<CommitInfo> GitManager::getLog(int maxCount)
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  Faz 2 — Stage / Unstage
+//  Stage / Unstage
 // ═══════════════════════════════════════════════════════════════════
 
 bool GitManager::stageFile(const QString &path)
@@ -540,7 +540,7 @@ bool GitManager::unstageAll()
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  Faz 2 — Commit
+//  Commit
 // ═══════════════════════════════════════════════════════════════════
 
 bool GitManager::commit(const QString &message, bool amend)
@@ -666,7 +666,7 @@ bool GitManager::discardFileChanges(const QString &path)
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  Faz 2 — Conflict Resolution
+//  Conflict Resolution
 // ═══════════════════════════════════════════════════════════════════
 
 bool GitManager::resolveUsingOurs(const QString &path)
@@ -708,7 +708,7 @@ bool GitManager::resolveUsingTheirs(const QString &path)
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  Faz 3 — Interactive Rebase (Squash)
+//  Interactive Rebase (Squash)
 // ═══════════════════════════════════════════════════════════════════
 
 bool GitManager::squashCommits(const QString &baseCommitId, const QString &newMessage)
@@ -758,7 +758,7 @@ bool GitManager::addToGitignore(const QString &path)
 
 
 // ═══════════════════════════════════════════════════════════════════
-//  Faz 2 — Credential callback
+//  Credential callback
 // ═══════════════════════════════════════════════════════════════════
 
 int GitManager::credentialCb(void *out, const char *url,
@@ -801,7 +801,7 @@ int GitManager::credentialCb(void *out, const char *url,
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  Faz 2 — Push
+//  Push
 // ═══════════════════════════════════════════════════════════════════
 
 bool GitManager::push(const QString &remoteName, bool force)
@@ -845,7 +845,7 @@ bool GitManager::push(const QString &remoteName, bool force)
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  Faz 2 — Pull  (fetch + fast-forward / merge)
+//  Pull  (fetch + fast-forward / merge)
 // ═══════════════════════════════════════════════════════════════════
 
 bool GitManager::pull(const QString &remoteName)
@@ -988,7 +988,7 @@ bool GitManager::pull(const QString &remoteName)
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  Faz 3 — Diff (workdir = unstaged changes)
+//  Diff (workdir = unstaged changes)
 // ═══════════════════════════════════════════════════════════════════
 
 QString GitManager::getWorkdirDiff(const QString &filePath)
@@ -1020,7 +1020,7 @@ QString GitManager::getWorkdirDiff(const QString &filePath)
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  Faz 3 — Diff (staged = index vs HEAD)
+//  Diff (staged = index vs HEAD)
 // ═══════════════════════════════════════════════════════════════════
 
 QString GitManager::getStagedDiff(const QString &filePath)
@@ -1062,7 +1062,7 @@ QString GitManager::getStagedDiff(const QString &filePath)
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  Faz 5 — Commit Details (Tree-to-Tree Diff)
+//  Commit Details (Tree-to-Tree Diff)
 // ═══════════════════════════════════════════════════════════════════
 
 QVector<FileStatusEntry> GitManager::getCommitChangedFiles(const QString &commitId)
@@ -1170,7 +1170,7 @@ QString GitManager::getCommitDiff(const QString &commitId, const QString &filePa
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  Faz 4 — Branch listing
+//  Branch listing
 // ═══════════════════════════════════════════════════════════════════
 
 QVector<BranchInfo> GitManager::getBranches()
@@ -1216,7 +1216,7 @@ QVector<BranchInfo> GitManager::getBranches()
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  Faz 5 — Tags
+//  Tags
 // ═══════════════════════════════════════════════════════════════════
 
 QVector<BranchInfo> GitManager::getTags()
@@ -1296,7 +1296,7 @@ bool GitManager::createTag(const QString &tagName, const QString &commitId, cons
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  Faz 4 — Create branch
+//  Create branch
 // ═══════════════════════════════════════════════════════════════════
 
 bool GitManager::createBranch(const QString &name)
@@ -1367,7 +1367,7 @@ bool GitManager::createBranchAt(const QString &name, const QString &commitId)
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  Faz 4 — Checkout branch
+//  Checkout branch
 // ═══════════════════════════════════════════════════════════════════
 
 bool GitManager::checkoutBranch(const QString &name)
@@ -1408,7 +1408,7 @@ bool GitManager::checkoutBranch(const QString &name)
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  Faz 4 — Merge branch
+//  Merge branch
 // ═══════════════════════════════════════════════════════════════════
 
 bool GitManager::mergeBranch(const QString &name)
@@ -1531,7 +1531,7 @@ bool GitManager::mergeBranch(const QString &name)
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  Faz 4 — Delete branch
+//  Delete branch
 // ═══════════════════════════════════════════════════════════════════
 
 bool GitManager::deleteBranch(const QString &name)
@@ -1565,7 +1565,7 @@ bool GitManager::deleteBranch(const QString &name)
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  Faz 3 — Stash & Advanced
+//  Stash & Advanced
 // ═══════════════════════════════════════════════════════════════════
 
 bool GitManager::stashSave(const QString &message)
@@ -1715,7 +1715,7 @@ QVector<BlameLine> GitManager::getBlame(const QString &filePath)
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  Faz 6 — Credentials & Remote Operations
+//  Credentials & Remote Operations
 // ═══════════════════════════════════════════════════════════════════
 
 void GitManager::setCredentials(const QString &username, const QString &token)
@@ -1770,7 +1770,7 @@ bool GitManager::fetch(const QString &remoteName)
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  Faz 6 — Config & Remotes
+//  Config & Remotes
 // ═══════════════════════════════════════════════════════════════════
 
 QString GitManager::getConfigValue(const QString &key)

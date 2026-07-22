@@ -615,7 +615,7 @@ void RepoWidget::updateBranchesTree()
     // Show diff for item is now handled directly via onCommitFileClicked
 
 // âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-//  Commit Graph Selection & Diff (Faz 5)
+//  Commit Graph Selection & Diff 
 // âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 void RepoWidget::onCommitSelected(const QItemSelection &selected, const QItemSelection &deselected)
