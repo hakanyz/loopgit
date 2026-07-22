@@ -809,6 +809,7 @@ void MainWindow::showShortcutsDialog()
                          "QHeaderView::section { background: #2D2D2D; color: #E0E0E0; padding: 6px; }");
 
     QVector<QPair<QString, QString>> shortcuts = {
+        {"Ctrl+N",         "Initialize New Repository"},
         {"Ctrl+O",         "Open Repository"},
         {"Ctrl+W",         "Close Current Tab"},
         {"Ctrl+F",         "Fetch from Remote"},
