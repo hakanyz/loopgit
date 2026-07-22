@@ -10,6 +10,7 @@ class QTabWidget;
 class QToolBar;
 class QAction;
 class QComboBox;
+class QPushButton;
 class RepoWidget;
 class QLabel;
 class QNetworkAccessManager;
@@ -55,6 +56,7 @@ private:
 
     QTabWidget *m_tabWidget;
     QWidget    *m_welcomeWidget;
+    QPushButton *m_btnReturnToTabs = nullptr;
     
     QToolBar   *m_toolBar;
     bool       m_updatingBranch = false;

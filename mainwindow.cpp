@@ -62,6 +62,20 @@ void MainWindow::setupUi()
     m_tabWidget = new QTabWidget(this);
     m_tabWidget->setTabsClosable(true);
     m_tabWidget->setMovable(true);
+
+    QToolButton *btnNewTab = new QToolButton(this);
+    btnNewTab->setText("+");
+    btnNewTab->setToolTip("Open Welcome Screen (New Repository)");
+    btnNewTab->setStyleSheet("QToolButton { border: none; font-size: 20px; font-weight: bold; color: #CCCCCC; padding: 0 10px; }"
+                             "QToolButton:hover { color: #FFFFFF; background-color: #3C3C3C; }");
+    m_tabWidget->setCornerWidget(btnNewTab, Qt::TopRightCorner);
+
+    connect(btnNewTab, &QToolButton::clicked, this, [this]() {
+        if (m_btnReturnToTabs) m_btnReturnToTabs->show();
+        m_tabWidget->hide();
+        m_welcomeWidget->show();
+        m_toolBar->setEnabled(false);
+    });
     
     QWidget *centralContainer = new QWidget(this);
     QVBoxLayout *containerLayout = new QVBoxLayout(centralContainer);
@@ -81,6 +95,7 @@ void MainWindow::setupUi()
         m_tabWidget->removeTab(index);
         w->deleteLater();
         if (m_tabWidget->count() == 0) {
+            if (m_btnReturnToTabs) m_btnReturnToTabs->hide();
             m_welcomeWidget->show();
             m_tabWidget->hide();
             m_toolBar->setEnabled(false);
@@ -146,6 +161,21 @@ void MainWindow::setupWelcomeScreen()
     }
 
     welcomeLayout->addSpacing(30);
+
+    m_btnReturnToTabs = new QPushButton("Return to Open Tabs", this);
+    m_btnReturnToTabs->setFixedSize(200, 30);
+    m_btnReturnToTabs->setStyleSheet("background-color: #4C4C4C; color: #FFFFFF; border: 1px solid #5C5C5C; border-radius: 4px; font-weight: bold;");
+    m_btnReturnToTabs->setCursor(Qt::PointingHandCursor);
+    m_btnReturnToTabs->hide();
+    connect(m_btnReturnToTabs, &QPushButton::clicked, this, [this]() {
+        if (m_tabWidget->count() > 0) {
+            m_welcomeWidget->hide();
+            m_tabWidget->show();
+            m_toolBar->setEnabled(true);
+        }
+    });
+    welcomeLayout->addWidget(m_btnReturnToTabs, 0, Qt::AlignCenter);
+    welcomeLayout->addSpacing(10);
 
     QHBoxLayout *btnLayout = new QHBoxLayout;
     btnLayout->setAlignment(Qt::AlignCenter);
