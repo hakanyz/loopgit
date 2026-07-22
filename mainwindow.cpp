@@ -207,10 +207,33 @@ void MainWindow::addNewHomeTab()
     QStringList recentRepos = settings.value("app/recent_repos").toStringList();
     
     if (!recentRepos.isEmpty()) {
+        QHBoxLayout *recentHeaderLayout = new QHBoxLayout;
+        recentHeaderLayout->setAlignment(Qt::AlignCenter);
+        
         QLabel *recentLabel = new QLabel("Recent Repositories:");
         recentLabel->setStyleSheet("font-weight: bold; font-size: 14px; color: #CCCCCC;");
-        recentLabel->setAlignment(Qt::AlignCenter);
-        welcomeLayout->addWidget(recentLabel);
+        recentLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        
+        QPushButton *btnClear = new QPushButton("Clear", this);
+        btnClear->setStyleSheet("padding: 2px 8px; font-size: 11px; background-color: #d32f2f; color: white; border-radius: 3px; border: none;");
+        btnClear->setCursor(Qt::PointingHandCursor);
+        btnClear->setFixedSize(50, 20);
+        
+        connect(btnClear, &QPushButton::clicked, this, [this, homeTab]() {
+            QSettings s;
+            s.remove("app/recent_repos");
+            int idx = m_tabWidget->indexOf(homeTab);
+            if (idx != -1) {
+                m_tabWidget->removeTab(idx);
+                homeTab->deleteLater();
+                addNewHomeTab();
+            }
+        });
+
+        recentHeaderLayout->addWidget(recentLabel);
+        recentHeaderLayout->addWidget(btnClear);
+        
+        welcomeLayout->addLayout(recentHeaderLayout);
         
         QVBoxLayout *recentLayout = new QVBoxLayout;
         recentLayout->setAlignment(Qt::AlignCenter);
