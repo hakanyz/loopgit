@@ -116,6 +116,24 @@ QString GitManager::lastError() const
 //  Faz 0 — Repository open / close
 // ═══════════════════════════════════════════════════════════════════
 
+bool GitManager::initRepository(const QString &path)
+{
+    closeRepository();
+    
+    QByteArray pathUtf8 = QDir::toNativeSeparators(path).toUtf8();
+    int err = git_repository_init(&m_repo, pathUtf8.constData(), 0);
+    if (err < 0) {
+        setError(QStringLiteral("Failed to initialize new repository"));
+        m_repo = nullptr;
+        return false;
+    }
+    
+    const char *workdir = git_repository_workdir(m_repo);
+    m_repoPath = workdir ? QDir::cleanPath(QString::fromUtf8(workdir)) : path;
+    emit repositoryOpened(m_repoPath);
+    return true;
+}
+
 bool GitManager::openRepository(const QString &path)
 {
     closeRepository();

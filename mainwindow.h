@@ -24,6 +24,7 @@ public:
     ~MainWindow() override;
 
 private slots:
+    void initRepository();
     void openRepository();
     void openRepositoryPath(const QString &path);
     void closeCurrentRepository();

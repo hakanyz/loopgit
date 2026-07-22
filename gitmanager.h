@@ -106,6 +106,7 @@ public:
     QPair<int, int> getAheadBehind(const QString &localBranch);
 
     /* ── Repository (Faz 0) ──────────────────────────── */
+    bool    initRepository(const QString &path);
     bool    openRepository(const QString &path);
     void    closeRepository();
     bool    isOpen()    const;

@@ -159,6 +159,11 @@ void MainWindow::setupWelcomeScreen()
     btnClone->setFixedSize(160, 40);
     connect(btnClone, &QPushButton::clicked, this, &MainWindow::cloneRepository);
 
+    QPushButton *btnInit = new QPushButton("Initialize Repository", this);
+    btnInit->setFixedSize(160, 40);
+    connect(btnInit, &QPushButton::clicked, this, &MainWindow::initRepository);
+
+    btnLayout->addWidget(btnInit);
     btnLayout->addWidget(btnOpen);
     btnLayout->addWidget(btnClone);
 
@@ -200,6 +205,9 @@ void MainWindow::setupMenuBar()
     QMenu *fileMenu = menuBar()->addMenu("File");
     m_actOpen = fileMenu->addAction("Open Repository...", this, &MainWindow::openRepository);
     m_actOpen->setShortcut(QKeySequence::Open);
+
+    QAction *actInit = fileMenu->addAction("Initialize Repository...", this, &MainWindow::initRepository);
+    actInit->setShortcut(QKeySequence::New);
 
     m_actClone = fileMenu->addAction("Clone Repository...", this, &MainWindow::cloneRepository);
 
@@ -576,6 +584,20 @@ RepoWidget* MainWindow::currentRepoWidget() const
 {
     if (m_tabWidget->count() == 0) return nullptr;
     return qobject_cast<RepoWidget*>(m_tabWidget->currentWidget());
+}
+
+void MainWindow::initRepository()
+{
+    QString dir = QFileDialog::getExistingDirectory(this, "Select Empty Folder to Initialize Git");
+    if (!dir.isEmpty()) {
+        // Just instantiate a temporary manager to call initRepository on it
+        GitManager tempMgr;
+        if (tempMgr.initRepository(dir)) {
+            openRepositoryPath(dir);
+        } else {
+            showError("Failed to initialize repository: " + tempMgr.lastError());
+        }
+    }
 }
 
 void MainWindow::openRepository()
