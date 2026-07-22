@@ -137,7 +137,18 @@ void MainWindow::setupUi()
 
     connect(m_tabWidget, &QTabWidget::currentChanged, this, [this](int index) {
         if (m_tabWidget->count() > 1 && index == m_tabWidget->count() - 1) {
-            addNewHomeTab();
+            int existingHomeIndex = -1;
+            for (int i = 0; i < m_tabWidget->count() - 1; ++i) {
+                if (m_tabWidget->widget(i)->objectName() == "HomeTabWidget") {
+                    existingHomeIndex = i;
+                    break;
+                }
+            }
+            if (existingHomeIndex != -1) {
+                m_tabWidget->setCurrentIndex(existingHomeIndex);
+            } else {
+                addNewHomeTab();
+            }
         } else {
             m_lastActiveTabIndex = index;
             onTabChanged(index);
