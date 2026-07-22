@@ -1083,7 +1083,7 @@ void MainWindow::onDownloadFinished(QNetworkReply *reply, const QString &downloa
         
         QMessageBox::information(this, "Download Complete", "The update has been downloaded. LoopGit will now restart to install the update.");
         
-        QProcess::startDetached(downloadPath, QStringList() << "/SILENT");
+        QProcess::startDetached(downloadPath, QStringList() << "/SILENT" << "/FORCECLOSEAPPLICATIONS");
         m_reallyQuit = true;
         qApp->quit();
     } else {
