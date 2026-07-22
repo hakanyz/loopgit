@@ -172,11 +172,6 @@ void MainWindow::addNewHomeTab()
         welcomeLayout->addWidget(logoLabel);
     }
 
-    QLabel *testLabel = new QLabel("v1.1.4 Update Test Successful! 🎉", this);
-    testLabel->setStyleSheet("color: #4CAF50; font-size: 16px; font-weight: bold;");
-    testLabel->setAlignment(Qt::AlignCenter);
-    welcomeLayout->addWidget(testLabel);
-
     welcomeLayout->addSpacing(30);
 
     QHBoxLayout *btnLayout = new QHBoxLayout;
