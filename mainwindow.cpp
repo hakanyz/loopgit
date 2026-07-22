@@ -694,9 +694,6 @@ void MainWindow::openRepositoryPath(const QString &path)
     }
     m_tabWidget->setCurrentIndex(index);
     m_lastActiveTabIndex = index;
-    
-    m_toolBar->setEnabled(true);
-    m_syncStatusLabel->setVisible(true);
 }
 
 void MainWindow::closeCurrentRepository()
@@ -728,6 +725,12 @@ void MainWindow::onTabChanged(int index)
     RepoWidget *rw = qobject_cast<RepoWidget*>(m_tabWidget->widget(index));
     if (rw) {
         setWindowTitle(QString("LoopGit - %1").arg(rw->repoPath()));
+        m_toolBar->setEnabled(true);
+        m_syncStatusLabel->setVisible(true);
+    } else {
+        setWindowTitle("LoopGit");
+        m_toolBar->setEnabled(false);
+        m_syncStatusLabel->setVisible(false);
     }
 }
 
