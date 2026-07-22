@@ -63,8 +63,7 @@ void MainWindow::setupUi()
     m_tabWidget->setTabsClosable(true);
     m_tabWidget->setMovable(true);
 
-    QWidget *dummyTab = new QWidget(this);
-    int plusIndex = m_tabWidget->addTab(dummyTab, "+");
+    int plusIndex = m_tabWidget->addTab(new QWidget(this), "+");
     
     QTabBar *tabBar = m_tabWidget->findChild<QTabBar *>();
     if (tabBar) {
@@ -79,23 +78,27 @@ void MainWindow::setupUi()
     
     setCentralWidget(centralContainer);
 
-    setupWelcomeScreen();
+    addNewHomeTab();
     setupMenuBar();
     setupToolBar();
 
     statusBar()->showMessage("Ready");
 
     connect(m_tabWidget, &QTabWidget::tabCloseRequested, this, [this](int index) {
+        m_tabWidget->blockSignals(true);
         QWidget *w = m_tabWidget->widget(index);
         m_tabWidget->removeTab(index);
         w->deleteLater();
         if (m_tabWidget->count() <= 1) { // only the + tab is left
-            if (m_btnReturnToTabs) m_btnReturnToTabs->hide();
-            m_welcomeWidget->show();
-            m_tabWidget->hide();
-            m_toolBar->setEnabled(false);
+            addNewHomeTab();
             setWindowTitle("LoopGit");
+        } else if (m_tabWidget->currentIndex() == m_tabWidget->count() - 1) {
+            m_tabWidget->setCurrentIndex(m_tabWidget->count() - 2);
         }
+        m_tabWidget->blockSignals(false);
+        
+        m_lastActiveTabIndex = m_tabWidget->currentIndex();
+        onTabChanged(m_lastActiveTabIndex);
     });
 
     m_trayIcon = new QSystemTrayIcon(qApp->windowIcon(), this);
@@ -134,31 +137,19 @@ void MainWindow::setupUi()
 
     connect(m_tabWidget, &QTabWidget::currentChanged, this, [this](int index) {
         if (m_tabWidget->count() > 1 && index == m_tabWidget->count() - 1) {
-            // + tab clicked
-            int prevIndex = m_lastActiveTabIndex;
-            if (prevIndex >= 0 && prevIndex < m_tabWidget->count() - 1) {
-                m_tabWidget->setCurrentIndex(prevIndex);
-            }
-            if (m_btnReturnToTabs) m_btnReturnToTabs->show();
-            m_tabWidget->hide();
-            m_welcomeWidget->show();
-            m_toolBar->setEnabled(false);
+            addNewHomeTab();
         } else {
             m_lastActiveTabIndex = index;
             onTabChanged(index);
         }
     });
-
-    m_tabWidget->hide();
-    m_welcomeWidget->show();
-    m_welcomeWidget->setParent(centralContainer);
-    containerLayout->addWidget(m_welcomeWidget);
 }
 
-void MainWindow::setupWelcomeScreen()
+void MainWindow::addNewHomeTab()
 {
-    m_welcomeWidget = new QWidget(this);
-    QVBoxLayout *welcomeLayout = new QVBoxLayout(m_welcomeWidget);
+    QWidget *homeTab = new QWidget(m_tabWidget);
+    homeTab->setObjectName("HomeTabWidget");
+    QVBoxLayout *welcomeLayout = new QVBoxLayout(homeTab);
     welcomeLayout->setAlignment(Qt::AlignCenter);
 
     QLabel *logoLabel = new QLabel(this);
@@ -171,21 +162,6 @@ void MainWindow::setupWelcomeScreen()
     }
 
     welcomeLayout->addSpacing(30);
-
-    m_btnReturnToTabs = new QPushButton("Return to Open Tabs", this);
-    m_btnReturnToTabs->setFixedSize(200, 30);
-    m_btnReturnToTabs->setStyleSheet("background-color: #4C4C4C; color: #FFFFFF; border: 1px solid #5C5C5C; border-radius: 4px; font-weight: bold;");
-    m_btnReturnToTabs->setCursor(Qt::PointingHandCursor);
-    m_btnReturnToTabs->hide();
-    connect(m_btnReturnToTabs, &QPushButton::clicked, this, [this]() {
-        if (m_tabWidget->count() > 0) {
-            m_welcomeWidget->hide();
-            m_tabWidget->show();
-            m_toolBar->setEnabled(true);
-        }
-    });
-    welcomeLayout->addWidget(m_btnReturnToTabs, 0, Qt::AlignCenter);
-    welcomeLayout->addSpacing(10);
 
     QHBoxLayout *btnLayout = new QHBoxLayout;
     btnLayout->setAlignment(Qt::AlignCenter);
@@ -203,13 +179,12 @@ void MainWindow::setupWelcomeScreen()
     btnInit->setFixedSize(160, 40);
     connect(btnInit, &QPushButton::clicked, this, &MainWindow::initRepository);
 
-    btnLayout->addWidget(btnInit);
     btnLayout->addWidget(btnOpen);
     btnLayout->addWidget(btnClone);
+    btnLayout->addWidget(btnInit);
 
     welcomeLayout->addLayout(btnLayout);
-    
-    welcomeLayout->addSpacing(30);
+
 
     QSettings settings;
     QStringList recentRepos = settings.value("app/recent_repos").toStringList();
@@ -238,6 +213,11 @@ void MainWindow::setupWelcomeScreen()
         
         welcomeLayout->addLayout(recentLayout);
     }
+    
+    welcomeLayout->addStretch();
+    
+    int index = m_tabWidget->insertTab(m_tabWidget->count() - 1, homeTab, "Home");
+    m_tabWidget->setCurrentIndex(index);
 }
 
 void MainWindow::setupMenuBar()
@@ -517,7 +497,7 @@ void MainWindow::applyDarkTheme()
             color: #808080;
             border: 1px solid #3C3C3C;
             border-bottom-color: #3C3C3C;
-            padding: 6px 12px;
+            padding: 8px 12px;
         }
         QTabBar::tab:selected {
             background-color: #1E1E1E;
@@ -526,6 +506,22 @@ void MainWindow::applyDarkTheme()
         }
         QTabBar::tab:hover {
             background-color: #3C3C3C;
+        }
+        QTabBar::tab:last {
+            min-width: 32px;
+            max-width: 32px;
+            padding: 4px 0px 0px 0px;
+            margin-left: 2px;
+            background: transparent;
+            border: none;
+            color: #CCCCCC;
+            font-size: 22px;
+            font-weight: bold;
+        }
+        QTabBar::tab:last:hover {
+            color: white;
+            background-color: #3C3C3C;
+            border-radius: 4px;
         }
         QPushButton {
             background-color: #0E639C;
@@ -682,31 +678,46 @@ void MainWindow::openRepositoryPath(const QString &path)
     QString tabName = QFileInfo(path).fileName();
     if (tabName.isEmpty()) tabName = path;
     
-    // Insert before the + tab (which is at the end)
-    int index = m_tabWidget->insertTab(m_tabWidget->count() - 1, rw, tabName);
+    int currentIndex = m_tabWidget->currentIndex();
+    QWidget *currentWidget = m_tabWidget->widget(currentIndex);
+    RepoWidget *rw_existing = qobject_cast<RepoWidget*>(currentWidget);
+    
+    int index;
+    if (!rw_existing && currentIndex != m_tabWidget->count() - 1) {
+        // It's a Home tab. Replace it!
+        m_tabWidget->removeTab(currentIndex);
+        currentWidget->deleteLater();
+        index = m_tabWidget->insertTab(currentIndex, rw, tabName);
+    } else {
+        // Insert before the + tab
+        index = m_tabWidget->insertTab(m_tabWidget->count() - 1, rw, tabName);
+    }
     m_tabWidget->setCurrentIndex(index);
     m_lastActiveTabIndex = index;
     
-    m_welcomeWidget->hide();
-    m_tabWidget->show();
     m_toolBar->setEnabled(true);
     m_syncStatusLabel->setVisible(true);
 }
 
 void MainWindow::closeCurrentRepository()
 {
-    int index = m_tabWidget->currentIndex();
-    if (index >= 0) {
-        QWidget *w = m_tabWidget->widget(index);
-        m_tabWidget->removeTab(index);
+    int currentIndex = m_tabWidget->currentIndex();
+    if (currentIndex >= 0 && currentIndex < m_tabWidget->count() - 1) { // not the + tab
+        m_tabWidget->blockSignals(true);
+        QWidget *w = m_tabWidget->widget(currentIndex);
+        m_tabWidget->removeTab(currentIndex);
         w->deleteLater();
-        if (m_tabWidget->count() == 0) {
-            m_welcomeWidget->show();
-            m_tabWidget->hide();
-            m_toolBar->setEnabled(false);
-            m_syncStatusLabel->setVisible(false);
+        
+        if (m_tabWidget->count() <= 1) {
+            addNewHomeTab();
             setWindowTitle("LoopGit");
+        } else if (m_tabWidget->currentIndex() == m_tabWidget->count() - 1) {
+            m_tabWidget->setCurrentIndex(m_tabWidget->count() - 2);
         }
+        m_tabWidget->blockSignals(false);
+        
+        m_lastActiveTabIndex = m_tabWidget->currentIndex();
+        onTabChanged(m_lastActiveTabIndex);
     }
 }
 

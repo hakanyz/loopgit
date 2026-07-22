@@ -63,5 +63,6 @@ void ReflogDialog::loadData()
         m_table->setItem(i, 2, msgItem);
     }
     
-    m_table->resizeColumnsToContents();
+    m_table->resizeColumnToContents(0);
+    m_table->resizeColumnToContents(1);
 }

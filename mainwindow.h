@@ -30,6 +30,8 @@ private slots:
     void openRepositoryPath(const QString &path);
     void closeCurrentRepository();
     void cloneRepository();
+
+    void addNewHomeTab();
     void onTabChanged(int index);
     void updateBranchCombo();
     void showAboutDialog();
@@ -49,14 +51,12 @@ private:
     void setupUi();
     void setupMenuBar();
     void setupToolBar();
-    void setupWelcomeScreen();
+
     void applyDarkTheme();
 
     RepoWidget* currentRepoWidget() const;
 
     QTabWidget *m_tabWidget;
-    QWidget    *m_welcomeWidget;
-    QPushButton *m_btnReturnToTabs = nullptr;
     int m_lastActiveTabIndex = 0;
     
     QToolBar   *m_toolBar;
