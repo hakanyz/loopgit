@@ -927,6 +927,7 @@ void MainWindow::onUpdateCheckFinished(QNetworkReply *reply, bool silent)
     
     QString latestVersion = obj["tag_name"].toString();
     if (latestVersion.startsWith("v")) latestVersion = latestVersion.mid(1);
+    if (latestVersion.endsWith("-beta")) latestVersion.replace("-beta", "");
     
     QString currentVersion = qApp->applicationVersion();
     if (currentVersion.endsWith("-beta")) currentVersion.replace("-beta", "");
