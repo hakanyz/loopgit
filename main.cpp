@@ -11,7 +11,7 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("LoopGit"));
-    app.setApplicationVersion(QStringLiteral("1.1.7"));
+    app.setApplicationVersion(QStringLiteral("1.1.8"));
     app.setOrganizationName(QStringLiteral("MyCompany"));
     app.setQuitOnLastWindowClosed(false);
 

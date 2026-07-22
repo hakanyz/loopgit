@@ -1119,7 +1119,7 @@ void MainWindow::onDownloadFinished(QNetworkReply *reply, const QString &downloa
         msgBox.exec();
         
         if (msgBox.clickedButton() == btnNow) {
-            QProcess::startDetached(downloadPath, QStringList() << "/SILENT" << "/FORCECLOSEAPPLICATIONS");
+            QProcess::startDetached(downloadPath, QStringList() << "/SILENT" << "/FORCECLOSEAPPLICATIONS" << "/RESTART");
             m_reallyQuit = true;
             qApp->quit();
         } else if (msgBox.clickedButton() == btnExit) {
