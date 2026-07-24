@@ -11,6 +11,7 @@ class QTextEdit;
 class QPushButton;
 class QComboBox;
 class QLabel;
+class QTextBrowser;
 class QSplitter;
 class QFileSystemWatcher;
 class QAction;
@@ -129,7 +130,7 @@ private:
     QSortFilterProxyModel *m_logProxyModel;
     CommitGraphDelegate *m_logDelegate;
     QLineEdit      *m_commitSearchFilter;
-    QLabel         *m_commitDetailsLabel;
+    QTextBrowser   *m_commitDetailsText;
 
     QTextEdit      *m_commitEdit;
     QPushButton    *m_commitBtn;

@@ -25,6 +25,7 @@
 #include "commitgraphdelegate.h"
 #include "branchdialog.h"
 #include <QLabel>
+#include <QTextBrowser>
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QFileInfo>
@@ -267,12 +268,11 @@ void RepoWidget::setupCentralWidget() {
     m_historyFilesTree->setRootIsDecorated(false);
     m_historyFilesTree->setAlternatingRowColors(true);
     
-    m_commitDetailsLabel = new QLabel;
-    m_commitDetailsLabel->setWordWrap(true);
-    m_commitDetailsLabel->setTextFormat(Qt::RichText);
-    m_commitDetailsLabel->setMinimumHeight(60);
-    m_commitDetailsLabel->setStyleSheet("padding: 8px; background-color: #252526; border-bottom: 1px solid #3C3C3C;");
-    m_commitDetailsLabel->setText("<span style='color:#808080;'>Select a commit to view details</span>");
+    m_commitDetailsText = new QTextBrowser;
+    m_commitDetailsText->setOpenExternalLinks(true);
+    m_commitDetailsText->setMinimumHeight(60);
+    m_commitDetailsText->setStyleSheet("padding: 8px; background-color: #252526; border-bottom: 1px solid #3C3C3C; border: none;");
+    m_commitDetailsText->setHtml("<span style='color:#808080;'>Select a commit to view details</span>");
 
     m_historyFileFilter = new QLineEdit;
     m_historyFileFilter->setPlaceholderText("Filter files...");
@@ -283,7 +283,7 @@ void RepoWidget::setupCentralWidget() {
     QVBoxLayout *hrLayout = new QVBoxLayout(historyRightWidget);
     hrLayout->setContentsMargins(0, 0, 0, 0);
     hrLayout->setSpacing(0);
-    hrLayout->addWidget(m_commitDetailsLabel);
+    hrLayout->addWidget(m_commitDetailsText);
     hrLayout->addWidget(m_historyFileFilter);
     hrLayout->addWidget(m_historyFilesTree);
 
@@ -654,7 +654,7 @@ void RepoWidget::onCommitSelected(const QItemSelection &selected, const QItemSel
         "</div>"
     ).arg(msg.toHtmlEscaped(), author.toHtmlEscaped(), date.toString("yyyy-MM-dd hh:mm:ss"), m_selectedCommitId);
     
-    m_commitDetailsLabel->setText(detailsHtml);
+    m_commitDetailsText->setHtml(detailsHtml);
     
     // Fetch changed files for this commit
     QVector<FileStatusEntry> entries = m_git->getCommitChangedFiles(m_selectedCommitId);
