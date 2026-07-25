@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
   build-linux:
     runs-on: ubuntu-22.04
@@ -29,7 +32,16 @@ jobs:
           cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ..
           cmake --build .
 
-      - name: Setup AppDir for AppImage
+      - name: Download linuxdeploy
+        run: |
+          wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          wget https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage linuxdeploy-plugin-qt-x86_64.AppImage
+
+      - name: Setup AppDir and build AppImage
+        env:
+          VERSION: ${{ github.ref_name }}
+          EXTRA_QT_PLUGINS: "svg"
         run: |
           mkdir -p AppDir/usr/bin
           mkdir -p AppDir/usr/share/applications
@@ -51,19 +63,8 @@ jobs:
           # Use our logo as icon
           cp resources/logo.png AppDir/usr/share/icons/hicolor/256x256/apps/loopgit.png
           
-          # Ensure AppRun is created
-          ln -s usr/bin/LoopGit AppDir/AppRun
-          
-      - name: Download linuxdeployqt
-        run: |
-          wget -c "https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage"
-          chmod a+x linuxdeployqt-continuous-x86_64.AppImage
-          
-      - name: Build AppImage
-        run: |
-          export VERSION=${GITHUB_REF_NAME#v}
-          # We run linuxdeployqt to bundle dependencies and generate the AppImage
-          ./linuxdeployqt-continuous-x86_64.AppImage AppDir/usr/share/applications/loopgit.desktop -appimage -unsupported-allow-new-glibc
+          # Run linuxdeploy
+          ./linuxdeploy-x86_64.AppImage --appdir AppDir --plugin qt --output appimage -d AppDir/usr/share/applications/loopgit.desktop -i AppDir/usr/share/icons/hicolor/256x256/apps/loopgit.png
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v1
