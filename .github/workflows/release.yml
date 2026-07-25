@@ -1,0 +1,113 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build build-essential libgit2-dev libssl-dev libgl1-mesa-dev
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: '6.5.3'
+          host: 'linux'
+          target: 'desktop'
+
+      - name: Build LoopGit
+        run: |
+          mkdir build && cd build
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ..
+          cmake --build .
+
+      - name: Setup AppDir for AppImage
+        run: |
+          mkdir -p AppDir/usr/bin
+          mkdir -p AppDir/usr/share/applications
+          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
+          
+          # Copy the executable
+          cp build/LoopGit AppDir/usr/bin/
+          
+          # Create a basic desktop file
+          cat <<EOF > AppDir/usr/share/applications/loopgit.desktop
+          [Desktop Entry]
+          Name=LoopGit
+          Exec=LoopGit
+          Icon=loopgit
+          Type=Application
+          Categories=Development;Utility;
+          EOF
+          
+          # Use our logo as icon (we have gitzen_logo_round_...png somewhere but for now we'll just try to use what we have or generate a dummy one if it doesn't exist so linuxdeployqt doesn't fail)
+          if [ -f "resources/loopgit_radius_icon.ico" ]; then
+             sudo apt-get install -y imagemagick
+             convert resources/loopgit_radius_icon.ico[0] AppDir/usr/share/icons/hicolor/256x256/apps/loopgit.png || touch AppDir/usr/share/icons/hicolor/256x256/apps/loopgit.png
+          else
+             touch AppDir/usr/share/icons/hicolor/256x256/apps/loopgit.png
+          fi
+          
+          # Ensure AppRun is created
+          ln -s usr/bin/LoopGit AppDir/AppRun
+          
+      - name: Download linuxdeployqt
+        run: |
+          wget -c "https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage"
+          chmod a+x linuxdeployqt-continuous-x86_64.AppImage
+          
+      - name: Build AppImage
+        run: |
+          export VERSION=${GITHUB_REF_NAME#v}
+          # We run linuxdeployqt to bundle dependencies and generate the AppImage
+          ./linuxdeployqt-continuous-x86_64.AppImage AppDir/usr/share/applications/loopgit.desktop -appimage -unsupported-allow-new-glibc
+
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v1
+        with:
+          files: LoopGit-*.AppImage
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: '6.5.3'
+          host: 'windows'
+          target: 'desktop'
+          arch: 'win64_mingw'
+
+      - name: Build LoopGit
+        run: |
+          mkdir build
+          cd build
+          cmake -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release ..
+          cmake --build .
+
+      - name: Run windeployqt
+        run: |
+          windeployqt build/LoopGit.exe
+
+      - name: Compile Inno Setup
+        run: |
+          iscc loopgit_setup.iss
+
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v1
+        with:
+          files: Output/LoopGit_*_Setup.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
