@@ -1,13 +1,14 @@
-﻿#include "gitmanager.h"
+#include "gitmanager.h"
 #include <git2.h>
 #include <QDir>
+#include <QTimeZone>
 #include <QFileInfo>
 #include <QInputDialog>
 #include <QLineEdit>
 
-// ═══════════════════════════════════════════════════════════════════
-//  Helper: convert git_delta_t → FileStatusEntry::Status
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
+//  Helper: convert git_delta_t ? FileStatusEntry::Status
+// -------------------------------------------------------------------
 
 static FileStatusEntry::Status deltaToStatus(git_delta_t delta)
 {
@@ -22,9 +23,9 @@ static FileStatusEntry::Status deltaToStatus(git_delta_t delta)
     }
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 //  Diff print callback (captures unified diff text into a QString)
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 
 static int diffPrintCb(const git_diff_delta * /*delta*/,
                        const git_diff_hunk  * /*hunk*/,
@@ -55,9 +56,9 @@ static int diffPrintCb(const git_diff_delta * /*delta*/,
     return 0;
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 //  Construction / Destruction
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 
 GitManager::GitManager(QObject *parent)
     : QObject(parent)
@@ -68,9 +69,9 @@ GitManager::~GitManager()
     closeRepository();
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 //  Global init / shutdown
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 
 bool GitManager::initialize()
 {
@@ -82,9 +83,9 @@ void GitManager::shutdown()
     git_libgit2_shutdown();
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 //  Error handling
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 
 void GitManager::setError(const QString &context)
 {
@@ -112,9 +113,9 @@ QString GitManager::lastError() const
     return m_lastError;
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 //  Repository open / close
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 
 bool GitManager::initRepository(const QString &path)
 {
@@ -169,9 +170,9 @@ void GitManager::closeRepository()
 bool GitManager::isOpen() const { return m_repo != nullptr; }
 QString GitManager::repoPath() const { return m_repoPath; }
 
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 //  Status
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 
 QVector<FileStatusEntry> GitManager::getFileStatus()
 {
@@ -203,7 +204,7 @@ QVector<FileStatusEntry> GitManager::getFileStatus()
 
         FileStatusEntry fse;
 
-        // ── Staged (index) changes ──────────────────────
+        // -- Staged (index) changes ----------------------
         if (entry->head_to_index) {
             fse.indexStatus = deltaToStatus(entry->head_to_index->status);
             fse.path = QString::fromUtf8(entry->head_to_index->new_file.path);
@@ -211,7 +212,7 @@ QVector<FileStatusEntry> GitManager::getFileStatus()
                 fse.oldPath = QString::fromUtf8(entry->head_to_index->old_file.path);
         }
 
-        // ── Unstaged (work-tree) changes ────────────────
+        // -- Unstaged (work-tree) changes ----------------
         if (entry->index_to_workdir) {
             fse.worktreeStatus = deltaToStatus(entry->index_to_workdir->status);
             // Prefer workdir path if index path is empty
@@ -239,9 +240,9 @@ QVector<FileStatusEntry> GitManager::getFileStatus()
     return result;
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 //  Current branch
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 
 QString GitManager::getCurrentBranch()
 {
@@ -265,7 +266,7 @@ QString GitManager::getCurrentBranch()
         return branchName;
     }
 
-    // Detached HEAD — show short OID
+    // Detached HEAD � show short OID
     const git_oid *oid = git_reference_target(head);
     char buf[12];
     git_oid_tostr(buf, sizeof(buf), oid);
@@ -273,9 +274,9 @@ QString GitManager::getCurrentBranch()
     return QStringLiteral("HEAD detached at %1").arg(QString::fromUtf8(buf));
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 //  Commit log
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 
 QVector<CommitInfo> GitManager::getLog(int maxCount)
 {
@@ -358,9 +359,9 @@ QVector<CommitInfo> GitManager::getLog(int maxCount)
     return result;
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 //  Stage / Unstage
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 
 bool GitManager::stageFile(const QString &path)
 {
@@ -377,7 +378,7 @@ bool GitManager::stageFile(const QString &path)
     // Check if the file was deleted in workdir
     QString fullPath = m_repoPath + "/" + path;
     if (!QFileInfo::exists(fullPath)) {
-        // File was deleted — remove from index
+        // File was deleted � remove from index
         if (git_index_remove_bypath(index, pathBytes.constData()) < 0) {
             setError(QStringLiteral("Failed to stage deleted file"));
             git_index_free(index);
@@ -435,7 +436,7 @@ bool GitManager::unstageFile(const QString &path)
     int err = git_repository_head(&head, m_repo);
 
     if (err == GIT_EUNBORNBRANCH) {
-        // No commits — remove from index entirely
+        // No commits � remove from index entirely
         git_index *index = nullptr;
         if (git_repository_index(&index, m_repo) < 0) {
             setError(QStringLiteral("Failed to get index"));
@@ -509,7 +510,7 @@ bool GitManager::unstageAll()
     int err = git_repository_head(&head, m_repo);
 
     if (err == GIT_EUNBORNBRANCH) {
-        // No commits — clear the entire index
+        // No commits � clear the entire index
         git_index *index = nullptr;
         git_repository_index(&index, m_repo);
         git_index_clear(index);
@@ -539,9 +540,9 @@ bool GitManager::unstageAll()
     return true;
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 //  Commit
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 
 bool GitManager::commit(const QString &message, bool amend)
 {
@@ -553,7 +554,7 @@ bool GitManager::commit(const QString &message, bool amend)
         return false;
     }
 
-    // Write index → tree
+    // Write index ? tree
     git_index *index = nullptr;
     if (git_repository_index(&index, m_repo) < 0) {
         setError(QStringLiteral("Failed to get index"));
@@ -589,7 +590,7 @@ bool GitManager::commit(const QString &message, bool amend)
     QByteArray msgBytes = message.toUtf8();
 
     if (headErr == GIT_EUNBORNBRANCH || headErr == GIT_ENOTFOUND) {
-        // Initial commit — no parent
+        // Initial commit � no parent
         err = git_commit_create_v(&commitOid, m_repo, "HEAD",
                                   sig, sig, "UTF-8",
                                   msgBytes.constData(),
@@ -665,9 +666,9 @@ bool GitManager::discardFileChanges(const QString &path)
     return true;
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 //  Conflict Resolution
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 
 bool GitManager::resolveUsingOurs(const QString &path)
 {
@@ -707,9 +708,9 @@ bool GitManager::resolveUsingTheirs(const QString &path)
     return stageFile(path); // Mark as resolved by staging
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 //  Interactive Rebase (Squash)
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 
 bool GitManager::squashCommits(const QString &baseCommitId, const QString &newMessage)
 {
@@ -757,9 +758,9 @@ bool GitManager::addToGitignore(const QString &path)
 }
 
 
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 //  Credential callback
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 
 int GitManager::credentialCb(void *out, const char *url,
                               const char *usernameFromUrl,
@@ -800,9 +801,9 @@ int GitManager::credentialCb(void *out, const char *url,
     return GIT_EUSER;   // unsupported type
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 //  Push
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 
 bool GitManager::push(const QString &remoteName, bool force)
 {
@@ -844,15 +845,15 @@ bool GitManager::push(const QString &remoteName, bool force)
     return true;
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 //  Pull  (fetch + fast-forward / merge)
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 
 bool GitManager::pull(const QString &remoteName)
 {
     if (!ensureOpen()) return false;
 
-    // ── Step 1: Fetch ───────────────────────────────────────
+    // -- Step 1: Fetch ---------------------------------------
     git_remote *remote = nullptr;
     if (git_remote_lookup(&remote, m_repo, remoteName.toUtf8().constData()) < 0) {
         setError(QStringLiteral("Remote '%1' not found").arg(remoteName));
@@ -872,7 +873,7 @@ bool GitManager::pull(const QString &remoteName)
         return false;
     }
 
-    // ── Step 2: Find remote tracking branch ─────────────────
+    // -- Step 2: Find remote tracking branch -----------------
     QString branch = getCurrentBranch();
     QString trackingRefName = QStringLiteral("refs/remotes/%1/%2")
                                   .arg(remoteName, branch);
@@ -884,7 +885,7 @@ bool GitManager::pull(const QString &remoteName)
         return true;
     }
 
-    // ── Step 3: Merge analysis ──────────────────────────────
+    // -- Step 3: Merge analysis ------------------------------
     git_annotated_commit *fetchHead = nullptr;
     if (git_annotated_commit_lookup(&fetchHead, m_repo, &remoteOid) < 0) {
         setError(QStringLiteral("Failed to lookup fetched commit"));
@@ -902,7 +903,7 @@ bool GitManager::pull(const QString &remoteName)
         return true;  // already up-to-date
     }
 
-    // ── Step 4a: Fast-forward ───────────────────────────────
+    // -- Step 4a: Fast-forward -------------------------------
     if (analysis & GIT_MERGE_ANALYSIS_FASTFORWARD) {
         git_reference *headRef = nullptr;
         git_repository_head(&headRef, m_repo);
@@ -924,7 +925,7 @@ bool GitManager::pull(const QString &remoteName)
         return true;
     }
 
-    // ── Step 4b: Normal merge ───────────────────────────────
+    // -- Step 4b: Normal merge -------------------------------
     if (analysis & GIT_MERGE_ANALYSIS_NORMAL) {
         git_merge_options mergeOpts = GIT_MERGE_OPTIONS_INIT;
         git_checkout_options coOpts = GIT_CHECKOUT_OPTIONS_INIT;
@@ -941,7 +942,7 @@ bool GitManager::pull(const QString &remoteName)
         git_index *index = nullptr;
         git_repository_index(&index, m_repo);
         if (git_index_has_conflicts(index)) {
-            setError(QStringLiteral("Merge has conflicts — resolve manually"));
+            setError(QStringLiteral("Merge has conflicts � resolve manually"));
             git_index_free(index);
             git_annotated_commit_free(fetchHead);
             return false;
@@ -987,9 +988,9 @@ bool GitManager::pull(const QString &remoteName)
     return true;
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 //  Diff (workdir = unstaged changes)
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 
 QString GitManager::getWorkdirDiff(const QString &filePath)
 {
@@ -1019,9 +1020,9 @@ QString GitManager::getWorkdirDiff(const QString &filePath)
     return result;
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 //  Diff (staged = index vs HEAD)
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 
 QString GitManager::getStagedDiff(const QString &filePath)
 {
@@ -1061,9 +1062,9 @@ QString GitManager::getStagedDiff(const QString &filePath)
     return result;
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 //  Commit Details (Tree-to-Tree Diff)
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 
 QVector<FileStatusEntry> GitManager::getCommitChangedFiles(const QString &commitId)
 {
@@ -1169,9 +1170,9 @@ QString GitManager::getCommitDiff(const QString &commitId, const QString &filePa
     return result;
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 //  Branch listing
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 
 QVector<BranchInfo> GitManager::getBranches()
 {
@@ -1215,9 +1216,9 @@ QVector<BranchInfo> GitManager::getBranches()
     return result;
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 //  Tags
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 
 QVector<BranchInfo> GitManager::getTags()
 {
@@ -1295,9 +1296,9 @@ bool GitManager::createTag(const QString &tagName, const QString &commitId, cons
     return true;
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 //  Create branch
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 
 bool GitManager::createBranch(const QString &name)
 {
@@ -1366,9 +1367,9 @@ bool GitManager::createBranchAt(const QString &name, const QString &commitId)
     return true;
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 //  Checkout branch
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 
 bool GitManager::checkoutBranch(const QString &name)
 {
@@ -1407,9 +1408,9 @@ bool GitManager::checkoutBranch(const QString &name)
     return true;
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 //  Merge branch
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 
 bool GitManager::mergeBranch(const QString &name)
 {
@@ -1484,7 +1485,7 @@ bool GitManager::mergeBranch(const QString &name)
     git_index *index = nullptr;
     git_repository_index(&index, m_repo);
     if (git_index_has_conflicts(index)) {
-        setError(QStringLiteral("Merge has conflicts — resolve manually"));
+        setError(QStringLiteral("Merge has conflicts � resolve manually"));
         git_index_free(index);
         git_annotated_commit_free(theirHead);
         return false;
@@ -1530,9 +1531,9 @@ bool GitManager::mergeBranch(const QString &name)
     return true;
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 //  Delete branch
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 
 bool GitManager::deleteBranch(const QString &name)
 {
@@ -1564,9 +1565,9 @@ bool GitManager::deleteBranch(const QString &name)
     return true;
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 //  Stash & Advanced
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 
 bool GitManager::stashSave(const QString &message)
 {
@@ -1714,9 +1715,9 @@ QVector<BlameLine> GitManager::getBlame(const QString &filePath)
     return result;
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 //  Credentials & Remote Operations
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 
 void GitManager::setCredentials(const QString &username, const QString &token)
 {
@@ -1769,9 +1770,9 @@ bool GitManager::fetch(const QString &remoteName)
     return true;
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 //  Config & Remotes
-// ═══════════════════════════════════════════════════════════════════
+// -------------------------------------------------------------------
 
 QString GitManager::getConfigValue(const QString &key)
 {
