@@ -57,23 +57,31 @@ jobs:
           # Ensure AppRun is created
           ln -s usr/bin/LoopGit AppDir/AppRun
           
-      - name: Download linuxdeployqt
-        run: |
-          wget -c "https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage"
-          chmod a+x linuxdeployqt-continuous-x86_64.AppImage
-          
-      - name: Build AppImage
+      - name: Build AppImage and Tarball
         env:
           APPIMAGE_EXTRACT_AND_RUN: "1"
+          QMAKE: qmake
+          EXTRA_QT_PLUGINS: "svg"
         run: |
           export VERSION=${GITHUB_REF_NAME#v}
-          # We run linuxdeployqt to bundle dependencies and generate the AppImage
-          ./linuxdeployqt-continuous-x86_64.AppImage AppDir/usr/share/applications/loopgit.desktop -appimage -unsupported-allow-new-glibc
+          
+          # 1. Create a tar.gz fallback
+          tar -czvf LoopGit-Linux-x86_64.tar.gz -C build LoopGit
+          
+          # 2. Download linuxdeploy and qt plugin
+          wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          wget -q https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage linuxdeploy-plugin-qt-x86_64.AppImage
+          
+          # 3. Create AppImage using modern linuxdeploy
+          ./linuxdeploy-x86_64.AppImage --appdir AppDir --plugin qt --output appimage -d AppDir/usr/share/applications/loopgit.desktop -i AppDir/usr/share/icons/hicolor/256x256/apps/loopgit.png || echo "AppImage creation failed, but tar.gz is available"
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v1
         with:
-          files: LoopGit-*.AppImage
+          files: |
+            LoopGit-*.AppImage
+            LoopGit-*.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
