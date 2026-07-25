@@ -1,4 +1,4 @@
-#include "gitmanager.h"
+ï»¿#include "gitmanager.h"
 #include <git2.h>
 #include <QDir>
 #include <QTimeZone>
@@ -266,7 +266,7 @@ QString GitManager::getCurrentBranch()
         return branchName;
     }
 
-    // Detached HEAD — show short OID
+    // Detached HEAD â€” show short OID
     const git_oid *oid = git_reference_target(head);
     char buf[12];
     git_oid_tostr(buf, sizeof(buf), oid);
@@ -378,7 +378,7 @@ bool GitManager::stageFile(const QString &path)
     // Check if the file was deleted in workdir
     QString fullPath = m_repoPath + "/" + path;
     if (!QFileInfo::exists(fullPath)) {
-        // File was deleted — remove from index
+        // File was deleted â€” remove from index
         if (git_index_remove_bypath(index, pathBytes.constData()) < 0) {
             setError(QStringLiteral("Failed to stage deleted file"));
             git_index_free(index);
@@ -436,7 +436,7 @@ bool GitManager::unstageFile(const QString &path)
     int err = git_repository_head(&head, m_repo);
 
     if (err == GIT_EUNBORNBRANCH) {
-        // No commits — remove from index entirely
+        // No commits â€” remove from index entirely
         git_index *index = nullptr;
         if (git_repository_index(&index, m_repo) < 0) {
             setError(QStringLiteral("Failed to get index"));
@@ -510,7 +510,7 @@ bool GitManager::unstageAll()
     int err = git_repository_head(&head, m_repo);
 
     if (err == GIT_EUNBORNBRANCH) {
-        // No commits — clear the entire index
+        // No commits â€” clear the entire index
         git_index *index = nullptr;
         git_repository_index(&index, m_repo);
         git_index_clear(index);
@@ -590,7 +590,7 @@ bool GitManager::commit(const QString &message, bool amend)
     QByteArray msgBytes = message.toUtf8();
 
     if (headErr == GIT_EUNBORNBRANCH || headErr == GIT_ENOTFOUND) {
-        // Initial commit — no parent
+        // Initial commit â€” no parent
         err = git_commit_create_v(&commitOid, m_repo, "HEAD",
                                   sig, sig, "UTF-8",
                                   msgBytes.constData(),
@@ -942,7 +942,7 @@ bool GitManager::pull(const QString &remoteName)
         git_index *index = nullptr;
         git_repository_index(&index, m_repo);
         if (git_index_has_conflicts(index)) {
-            setError(QStringLiteral("Merge has conflicts — resolve manually"));
+            setError(QStringLiteral("Merge has conflicts - resolve manually"));
             git_index_free(index);
             git_annotated_commit_free(fetchHead);
             return false;
@@ -1485,7 +1485,7 @@ bool GitManager::mergeBranch(const QString &name)
     git_index *index = nullptr;
     git_repository_index(&index, m_repo);
     if (git_index_has_conflicts(index)) {
-        setError(QStringLiteral("Merge has conflicts — resolve manually"));
+        setError(QStringLiteral("Merge has conflicts - resolve manually"));
         git_index_free(index);
         git_annotated_commit_free(theirHead);
         return false;
