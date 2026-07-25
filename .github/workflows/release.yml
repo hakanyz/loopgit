@@ -48,13 +48,8 @@ jobs:
           Categories=Development;Utility;
           EOF
           
-          # Use our logo as icon (we have gitzen_logo_round_...png somewhere but for now we'll just try to use what we have or generate a dummy one if it doesn't exist so linuxdeployqt doesn't fail)
-          if [ -f "resources/loopgit_radius_icon.ico" ]; then
-             sudo apt-get install -y imagemagick
-             convert resources/loopgit_radius_icon.ico[0] AppDir/usr/share/icons/hicolor/256x256/apps/loopgit.png || touch AppDir/usr/share/icons/hicolor/256x256/apps/loopgit.png
-          else
-             touch AppDir/usr/share/icons/hicolor/256x256/apps/loopgit.png
-          fi
+          # Use our logo as icon
+          cp resources/logo.png AppDir/usr/share/icons/hicolor/256x256/apps/loopgit.png
           
           # Ensure AppRun is created
           ln -s usr/bin/LoopGit AppDir/AppRun
