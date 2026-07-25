@@ -42,6 +42,7 @@ jobs:
         env:
           VERSION: ${{ github.ref_name }}
           EXTRA_QT_PLUGINS: "svg"
+          APPIMAGE_EXTRACT_AND_RUN: "1"
         run: |
           mkdir -p AppDir/usr/bin
           mkdir -p AppDir/usr/share/applications
