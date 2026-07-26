@@ -991,12 +991,14 @@ void MainWindow::closeEvent(QCloseEvent *event)
         }
         hide();
         event->ignore();
-    } else {
+    } else if (msgBox.clickedButton() == btnQuit) {
         if (cbRemember->isChecked()) {
             settings.setValue("app/closeAction", "quit");
         }
         event->accept();
         qApp->quit();
+    } else {
+        event->ignore();
     }
 }
 
