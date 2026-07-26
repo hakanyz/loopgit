@@ -40,7 +40,9 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QDesktopServices>
 #include <QProgressDialog>
+#include <QVersionNumber>
 #include <QFile>
 #include <QDir>
 #include <QStandardPaths>
@@ -1039,7 +1041,10 @@ void MainWindow::onUpdateCheckFinished(QNetworkReply *reply, bool silent)
         }
     }
 
-    if (latestVersion > currentVersion && !downloadUrl.isEmpty()) {
+    QVersionNumber vLatest = QVersionNumber::fromString(latestVersion);
+    QVersionNumber vCurrent = QVersionNumber::fromString(currentVersion);
+
+    if (vLatest > vCurrent && !downloadUrl.isEmpty()) {
         m_latestUpdateVersion = latestVersion;
         m_latestUpdateUrl = downloadUrl;
         
