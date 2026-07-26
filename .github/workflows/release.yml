@@ -135,11 +135,14 @@ jobs:
           host: 'mac'
           target: 'desktop'
 
+      - name: Fix missing AGL framework
+        run: sudo mkdir -p /Library/Frameworks/AGL.framework
+
       - name: Build LoopGit
         run: |
           mkdir build
           cd build
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ..
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DOPENGL_agl_LIBRARY="" ..
           cmake --build .
 
       - name: Build DMG with macdeployqt
