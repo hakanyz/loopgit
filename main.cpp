@@ -12,14 +12,11 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("LoopGit"));
-    app.setApplicationVersion(QStringLiteral("1.1.12"));
+    app.setApplicationVersion(QStringLiteral("1.1.13"));
     app.setOrganizationName(QStringLiteral("MyCompany"));
     app.setQuitOnLastWindowClosed(false);
 
     app.setStyle("Fusion");
-#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
-    app.styleHints()->setColorScheme(Qt::ColorScheme::Dark);
-#endif
 
     // Load the pre-rendered squircle (rounded rectangle) icon directly
     app.setWindowIcon(QIcon(":/resources/loopgit_radius_icon.ico"));
