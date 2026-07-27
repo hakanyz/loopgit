@@ -978,7 +978,10 @@ void MainWindow::closeEvent(QCloseEvent *event)
     msgBox.setInformativeText("You can minimize the application to the system tray or exit completely.");
     
     QPushButton *btnTray = msgBox.addButton("Minimize to Tray", QMessageBox::AcceptRole);
-    QPushButton *btnQuit = msgBox.addButton("Exit Application", QMessageBox::RejectRole);
+    QPushButton *btnQuit = msgBox.addButton("Exit Application", QMessageBox::DestructiveRole);
+    
+    QPushButton *btnCancel = msgBox.addButton(QMessageBox::Cancel);
+    btnCancel->hide(); // Hide it so the UI is clean, but keep it so the 'X' button works
     
     QCheckBox *cbRemember = new QCheckBox("Don't ask again");
     msgBox.setCheckBox(cbRemember);
