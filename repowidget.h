@@ -3,6 +3,8 @@
 
 #include <QWidget>
 #include <QItemSelection>
+#include <QFutureWatcher>
+#include "gitmanager.h"
 
 class QTreeWidget;
 class QTreeWidgetItem;
@@ -147,6 +149,14 @@ private:
     QFileSystemWatcher *m_watcher;
     QTimer *m_refreshTimer;
     QString m_repoPath;
+    
+    QFutureWatcher<QVector<FileStatusEntry>> *m_statusWatcher = nullptr;
+    QFutureWatcher<QVector<CommitInfo>> *m_logWatcher = nullptr;
+    QFutureWatcher<QVector<BranchInfo>> *m_branchesWatcher = nullptr;
+
+    void populateFileList(const QVector<FileStatusEntry> &entries);
+    void populateCommitLog(const QVector<CommitInfo> &commits);
+    void populateBranchesTree(const QVector<BranchInfo> &branches);
 };
 
 #endif // RepoWidget_H

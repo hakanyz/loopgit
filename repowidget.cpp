@@ -42,6 +42,7 @@
 #include <QDir>
 #include <QTimer>
 #include <QCheckBox>
+#include <QtConcurrent/QtConcurrent>
 
 // ═════════════════════════════════════════════════════════════════════════════════
 //  Construction / Destruction
@@ -496,11 +497,26 @@ void RepoWidget::refreshAll()
 
 void RepoWidget::updateFileList()
 {
+    if (m_statusWatcher && m_statusWatcher->isRunning()) return;
+
+    if (!m_statusWatcher) {
+        m_statusWatcher = new QFutureWatcher<QVector<FileStatusEntry>>(this);
+        connect(m_statusWatcher, &QFutureWatcher<QVector<FileStatusEntry>>::finished, this, [this]() {
+            populateFileList(m_statusWatcher->result());
+        });
+    }
+    
+    GitManager* git = m_git;
+    m_statusWatcher->setFuture(QtConcurrent::run([git]() { return git->getFileStatus(); }));
+}
+
+void RepoWidget::populateFileList(const QVector<FileStatusEntry> &entries)
+{
     qDeleteAll(m_stagedRoot->takeChildren());
     qDeleteAll(m_unstagedRoot->takeChildren());
     qDeleteAll(m_conflictedRoot->takeChildren());
 
-    QVector<FileStatusEntry> entries = m_git->getFileStatus();
+    // Original file iteration logic here...
 
     for (const auto &entry : entries) {
         if (entry.indexStatus == FileStatusEntry::Conflicted || entry.worktreeStatus == FileStatusEntry::Conflicted) {
@@ -560,13 +576,42 @@ void RepoWidget::updateFileList()
 
 void RepoWidget::updateCommitLog()
 {
-    m_logModel->setCommits(m_git->getLog(200));
+    if (m_logWatcher && m_logWatcher->isRunning()) return;
+
+    if (!m_logWatcher) {
+        m_logWatcher = new QFutureWatcher<QVector<CommitInfo>>(this);
+        connect(m_logWatcher, &QFutureWatcher<QVector<CommitInfo>>::finished, this, [this]() {
+            populateCommitLog(m_logWatcher->result());
+        });
+    }
+    
+    GitManager* git = m_git;
+    m_logWatcher->setFuture(QtConcurrent::run([git]() { return git->getLog(200); }));
+}
+
+void RepoWidget::populateCommitLog(const QVector<CommitInfo> &commits)
+{
+    m_logModel->setCommits(commits);
 }
 
 void RepoWidget::updateBranchesTree()
 {
+    if (m_branchesWatcher && m_branchesWatcher->isRunning()) return;
+
+    if (!m_branchesWatcher) {
+        m_branchesWatcher = new QFutureWatcher<QVector<BranchInfo>>(this);
+        connect(m_branchesWatcher, &QFutureWatcher<QVector<BranchInfo>>::finished, this, [this]() {
+            populateBranchesTree(m_branchesWatcher->result());
+        });
+    }
+    
+    GitManager* git = m_git;
+    m_branchesWatcher->setFuture(QtConcurrent::run([git]() { return git->getBranches(); }));
+}
+
+void RepoWidget::populateBranchesTree(const QVector<BranchInfo> &branches)
+{
     m_branchesTree->clear();
-    QVector<BranchInfo> branches = m_git->getBranches();
 
     QTreeWidgetItem *localRoot = new QTreeWidgetItem(m_branchesTree, {QStringLiteral("Local Branches")});
     localRoot->setExpanded(true);
@@ -1448,3 +1493,4 @@ void RepoWidget::showHistoryContextMenu(const QPoint &pos)
     }
 }
  
+

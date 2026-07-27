@@ -5,6 +5,7 @@
 #include <QString>
 #include <QVector>
 #include <QDateTime>
+#include <QRecursiveMutex>
 
 // Forward declaration — git2.h is only included in gitmanager.cpp
 struct git_repository;
@@ -200,6 +201,7 @@ private:
     git_repository *m_repo     = nullptr;
     QString         m_repoPath;
     QString         m_lastError;
+    mutable QRecursiveMutex m_repoMutex;
 
     // Credentials for network operations
     QString m_username;

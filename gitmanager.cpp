@@ -100,6 +100,7 @@ void GitManager::setError(const QString &context)
 
 bool GitManager::ensureOpen()
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!m_repo) {
         m_lastError = QStringLiteral("No repository is open");
         emit errorOccurred(m_lastError);
@@ -119,6 +120,7 @@ QString GitManager::lastError() const
 
 bool GitManager::initRepository(const QString &path)
 {
+    QMutexLocker locker(&m_repoMutex);
     closeRepository();
     
     QByteArray pathUtf8 = QDir::toNativeSeparators(path).toUtf8();
@@ -137,6 +139,7 @@ bool GitManager::initRepository(const QString &path)
 
 bool GitManager::openRepository(const QString &path)
 {
+    QMutexLocker locker(&m_repoMutex);
     closeRepository();
 
     QByteArray pathUtf8 = QDir::toNativeSeparators(path).toUtf8();
@@ -159,6 +162,7 @@ bool GitManager::openRepository(const QString &path)
 
 void GitManager::closeRepository()
 {
+    QMutexLocker locker(&m_repoMutex);
     if (m_repo) {
         git_repository_free(m_repo);
         m_repo = nullptr;
@@ -176,6 +180,7 @@ QString GitManager::repoPath() const { return m_repoPath; }
 
 QVector<FileStatusEntry> GitManager::getFileStatus()
 {
+    QMutexLocker locker(&m_repoMutex);
     QVector<FileStatusEntry> result;
     if (!ensureOpen()) return result;
 
@@ -246,6 +251,7 @@ QVector<FileStatusEntry> GitManager::getFileStatus()
 
 QString GitManager::getCurrentBranch()
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen()) return QString();
 
     git_reference *head = nullptr;
@@ -280,6 +286,7 @@ QString GitManager::getCurrentBranch()
 
 QVector<CommitInfo> GitManager::getLog(int maxCount)
 {
+    QMutexLocker locker(&m_repoMutex);
     QVector<CommitInfo> result;
     if (!ensureOpen()) return result;
 
@@ -365,6 +372,7 @@ QVector<CommitInfo> GitManager::getLog(int maxCount)
 
 bool GitManager::stageFile(const QString &path)
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen()) return false;
 
     git_index *index = nullptr;
@@ -399,6 +407,7 @@ bool GitManager::stageFile(const QString &path)
 
 bool GitManager::stageHunk(const QString &patchText)
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen() || patchText.isEmpty()) return false;
 
     git_diff *diff = nullptr;
@@ -430,6 +439,7 @@ bool GitManager::stageHunk(const QString &patchText)
 
 bool GitManager::unstageFile(const QString &path)
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen()) return false;
 
     git_reference *head = nullptr;
@@ -474,6 +484,7 @@ bool GitManager::unstageFile(const QString &path)
 
 bool GitManager::stageAll()
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen()) return false;
 
     git_index *index = nullptr;
@@ -504,6 +515,7 @@ bool GitManager::stageAll()
 
 bool GitManager::unstageAll()
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen()) return false;
 
     git_reference *head = nullptr;
@@ -546,6 +558,7 @@ bool GitManager::unstageAll()
 
 bool GitManager::commit(const QString &message, bool amend)
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen()) return false;
 
     if (message.trimmed().isEmpty()) {
@@ -640,6 +653,7 @@ bool GitManager::commit(const QString &message, bool amend)
 
 bool GitManager::discardFileChanges(const QString &path)
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen() || path.isEmpty()) return false;
 
     // First try git_checkout_index to restore the file
@@ -672,6 +686,7 @@ bool GitManager::discardFileChanges(const QString &path)
 
 bool GitManager::resolveUsingOurs(const QString &path)
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen() || path.isEmpty()) return false;
     git_checkout_options opts = GIT_CHECKOUT_OPTIONS_INIT;
     opts.checkout_strategy = GIT_CHECKOUT_USE_OURS | GIT_CHECKOUT_FORCE;
@@ -691,6 +706,7 @@ bool GitManager::resolveUsingOurs(const QString &path)
 
 bool GitManager::resolveUsingTheirs(const QString &path)
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen() || path.isEmpty()) return false;
     git_checkout_options opts = GIT_CHECKOUT_OPTIONS_INIT;
     opts.checkout_strategy = GIT_CHECKOUT_USE_THEIRS | GIT_CHECKOUT_FORCE;
@@ -714,6 +730,7 @@ bool GitManager::resolveUsingTheirs(const QString &path)
 
 bool GitManager::squashCommits(const QString &baseCommitId, const QString &newMessage)
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen() || baseCommitId.isEmpty()) return false;
 
     git_oid baseOid;
@@ -742,6 +759,7 @@ bool GitManager::squashCommits(const QString &baseCommitId, const QString &newMe
 
 bool GitManager::addToGitignore(const QString &path)
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen() || path.isEmpty()) return false;
     
     QString gitignorePath = QDir(repoPath()).absoluteFilePath(".gitignore");
@@ -807,6 +825,7 @@ int GitManager::credentialCb(void *out, const char *url,
 
 bool GitManager::push(const QString &remoteName, bool force)
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen()) return false;
 
     git_remote *remote = nullptr;
@@ -851,6 +870,7 @@ bool GitManager::push(const QString &remoteName, bool force)
 
 bool GitManager::pull(const QString &remoteName)
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen()) return false;
 
     // -- Step 1: Fetch ---------------------------------------
@@ -994,6 +1014,7 @@ bool GitManager::pull(const QString &remoteName)
 
 QString GitManager::getWorkdirDiff(const QString &filePath)
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen()) return QString();
 
     git_diff *diff = nullptr;
@@ -1026,6 +1047,7 @@ QString GitManager::getWorkdirDiff(const QString &filePath)
 
 QString GitManager::getStagedDiff(const QString &filePath)
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen()) return QString();
 
     // Get HEAD tree (may be null for initial commit)
@@ -1068,6 +1090,7 @@ QString GitManager::getStagedDiff(const QString &filePath)
 
 QVector<FileStatusEntry> GitManager::getCommitChangedFiles(const QString &commitId)
 {
+    QMutexLocker locker(&m_repoMutex);
     QVector<FileStatusEntry> result;
     if (!ensureOpen() || commitId.isEmpty()) return result;
 
@@ -1124,6 +1147,7 @@ QVector<FileStatusEntry> GitManager::getCommitChangedFiles(const QString &commit
 
 QString GitManager::getCommitDiff(const QString &commitId, const QString &filePath)
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen() || commitId.isEmpty()) return QString();
 
     git_oid oid;
@@ -1176,6 +1200,7 @@ QString GitManager::getCommitDiff(const QString &commitId, const QString &filePa
 
 QVector<BranchInfo> GitManager::getBranches()
 {
+    QMutexLocker locker(&m_repoMutex);
     QVector<BranchInfo> result;
     if (!ensureOpen()) return result;
 
@@ -1222,6 +1247,7 @@ QVector<BranchInfo> GitManager::getBranches()
 
 QVector<BranchInfo> GitManager::getTags()
 {
+    QMutexLocker locker(&m_repoMutex);
     QVector<BranchInfo> result;
     if (!ensureOpen()) return result;
 
@@ -1259,6 +1285,7 @@ QVector<BranchInfo> GitManager::getTags()
 
 bool GitManager::createTag(const QString &tagName, const QString &commitId, const QString &message)
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen()) return false;
 
     git_oid targetOid;
@@ -1302,6 +1329,7 @@ bool GitManager::createTag(const QString &tagName, const QString &commitId, cons
 
 bool GitManager::createBranch(const QString &name)
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen()) return false;
 
     // Get HEAD commit
@@ -1338,6 +1366,7 @@ bool GitManager::createBranch(const QString &name)
 
 bool GitManager::createBranchAt(const QString &name, const QString &commitId)
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen()) return false;
 
     git_oid oid;
@@ -1373,6 +1402,7 @@ bool GitManager::createBranchAt(const QString &name, const QString &commitId)
 
 bool GitManager::checkoutBranch(const QString &name)
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen()) return false;
 
     QString fullRef = QStringLiteral("refs/heads/%1").arg(name);
@@ -1414,6 +1444,7 @@ bool GitManager::checkoutBranch(const QString &name)
 
 bool GitManager::mergeBranch(const QString &name)
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen()) return false;
 
     // Resolve branch reference
@@ -1537,6 +1568,7 @@ bool GitManager::mergeBranch(const QString &name)
 
 bool GitManager::deleteBranch(const QString &name)
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen()) return false;
 
     git_reference *branchRef = nullptr;
@@ -1571,6 +1603,7 @@ bool GitManager::deleteBranch(const QString &name)
 
 bool GitManager::stashSave(const QString &message)
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen()) return false;
 
     git_signature *sig = nullptr;
@@ -1595,6 +1628,7 @@ bool GitManager::stashSave(const QString &message)
 
 bool GitManager::stashPop()
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen()) return false;
 
     git_stash_apply_options opts = GIT_STASH_APPLY_OPTIONS_INIT;
@@ -1612,6 +1646,7 @@ bool GitManager::stashPop()
 
 bool GitManager::cherryPick(const QString &commitId)
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen() || commitId.isEmpty()) return false;
 
     git_oid oid;
@@ -1639,6 +1674,7 @@ bool GitManager::cherryPick(const QString &commitId)
 
 bool GitManager::revertCommit(const QString &commitId)
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen() || commitId.isEmpty()) return false;
 
     git_oid oid;
@@ -1666,6 +1702,7 @@ bool GitManager::revertCommit(const QString &commitId)
 
 QVector<BlameLine> GitManager::getBlame(const QString &filePath)
 {
+    QMutexLocker locker(&m_repoMutex);
     QVector<BlameLine> result;
     if (!ensureOpen() || filePath.isEmpty()) return result;
 
@@ -1727,6 +1764,7 @@ void GitManager::setCredentials(const QString &username, const QString &token)
 
 bool GitManager::cloneRepository(const QString &url, const QString &localPath)
 {
+    QMutexLocker locker(&m_repoMutex);
     git_clone_options clone_opts = GIT_CLONE_OPTIONS_INIT;
     clone_opts.fetch_opts.callbacks.credentials = reinterpret_cast<git_credential_acquire_cb>(credentialCb);
     clone_opts.fetch_opts.callbacks.payload = this;
@@ -1746,6 +1784,7 @@ bool GitManager::cloneRepository(const QString &url, const QString &localPath)
 
 bool GitManager::fetch(const QString &remoteName)
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen()) return false;
     
     git_remote *remote = nullptr;
@@ -1776,6 +1815,7 @@ bool GitManager::fetch(const QString &remoteName)
 
 QString GitManager::getConfigValue(const QString &key)
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen()) return QString();
     git_config *cfg = nullptr;
     if (git_repository_config(&cfg, m_repo) == 0) {
@@ -1793,6 +1833,7 @@ QString GitManager::getConfigValue(const QString &key)
 
 bool GitManager::setConfigValue(const QString &key, const QString &value)
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen()) return false;
     git_config *cfg = nullptr;
     if (git_repository_config(&cfg, m_repo) == 0) {
@@ -1806,6 +1847,7 @@ bool GitManager::setConfigValue(const QString &key, const QString &value)
 
 QStringList GitManager::getRemotes()
 {
+    QMutexLocker locker(&m_repoMutex);
     QStringList list;
     if (!ensureOpen()) return list;
     git_strarray remotes = {0};
@@ -1820,6 +1862,7 @@ QStringList GitManager::getRemotes()
 
 QString GitManager::getRemoteUrl(const QString &remoteName)
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen()) return QString();
     git_remote *remote = nullptr;
     if (git_remote_lookup(&remote, m_repo, remoteName.toUtf8().constData()) == 0) {
@@ -1832,6 +1875,7 @@ QString GitManager::getRemoteUrl(const QString &remoteName)
 
 bool GitManager::addRemote(const QString &name, const QString &url)
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen()) return false;
     git_remote *remote = nullptr;
     if (git_remote_create(&remote, m_repo, name.toUtf8().constData(), url.toUtf8().constData()) == 0) {
@@ -1844,6 +1888,7 @@ bool GitManager::addRemote(const QString &name, const QString &url)
 
 bool GitManager::setRemoteUrl(const QString &name, const QString &url)
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen()) return false;
     if (git_remote_set_url(m_repo, name.toUtf8().constData(), url.toUtf8().constData()) == 0) {
         return true;
@@ -1854,6 +1899,7 @@ bool GitManager::setRemoteUrl(const QString &name, const QString &url)
 
 bool GitManager::removeRemote(const QString &name)
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen()) return false;
     if (git_remote_delete(m_repo, name.toUtf8().constData()) == 0) {
         return true;
@@ -1864,6 +1910,7 @@ bool GitManager::removeRemote(const QString &name)
 
 QVector<GitManager::ReflogEntry> GitManager::getReflog(const QString &refname)
 {
+    QMutexLocker locker(&m_repoMutex);
     QVector<ReflogEntry> result;
     if (!ensureOpen()) return result;
 
@@ -1903,6 +1950,7 @@ QVector<GitManager::ReflogEntry> GitManager::getReflog(const QString &refname)
 
 QPair<int, int> GitManager::getAheadBehind(const QString &localBranch)
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen()) return qMakePair(0, 0);
 
     git_reference *local_ref = nullptr;
@@ -1933,6 +1981,7 @@ QPair<int, int> GitManager::getAheadBehind(const QString &localBranch)
 
 QString GitManager::getTwoCommitsDiff(const QString &oid1, const QString &oid2, const QString &filePath)
 {
+    QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen() || oid1.isEmpty() || oid2.isEmpty()) return QString();
 
     git_oid id1, id2;
@@ -1981,6 +2030,7 @@ QString GitManager::getTwoCommitsDiff(const QString &oid1, const QString &oid2, 
 
 QVector<FileStatusEntry> GitManager::getTwoCommitsChangedFiles(const QString &oid1, const QString &oid2)
 {
+    QMutexLocker locker(&m_repoMutex);
     QVector<FileStatusEntry> result;
     if (!ensureOpen() || oid1.isEmpty() || oid2.isEmpty()) return result;
 
@@ -2034,3 +2084,4 @@ QVector<FileStatusEntry> GitManager::getTwoCommitsChangedFiles(const QString &oi
     return result;
 }
  
+
