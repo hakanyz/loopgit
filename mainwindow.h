@@ -99,6 +99,7 @@ private:
 
 protected:
     void closeEvent(QCloseEvent *event) override;
+    void changeEvent(QEvent *event) override;
 };
 
 #endif // MAINWINDOW_H

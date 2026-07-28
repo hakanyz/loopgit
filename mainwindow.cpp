@@ -951,6 +951,17 @@ void MainWindow::showError(const QString &msg)
     QMessageBox::critical(this, "Error", msg);
 }
 
+void MainWindow::changeEvent(QEvent *event)
+{
+    if (event->type() == QEvent::ActivationChange && isActiveWindow()) {
+        RepoWidget *rw = currentRepoWidget();
+        if (rw) {
+            rw->refreshAll();
+        }
+    }
+    QMainWindow::changeEvent(event);
+}
+
 void MainWindow::closeEvent(QCloseEvent *event)
 {
     if (m_reallyQuit || !m_trayIcon || !m_trayIcon->isVisible()) {

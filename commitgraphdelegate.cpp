@@ -38,21 +38,38 @@ void CommitGraphDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
         int x = rect.left() + 4;
         QFontMetrics fm(painter->font());
         
+        int maxBadges = 2;
+        int drawn = 0;
+        
         for (const QString &ref : refs) {
+            if (drawn >= maxBadges && refs.size() > maxBadges) {
+                QString moreText = QString("+%1 more").arg(refs.size() - maxBadges);
+                QRect badgeRect(x, rect.top() + (rect.height() - 16) / 2, fm.horizontalAdvance(moreText) + 12, 16);
+                painter->setPen(Qt::NoPen);
+                painter->setBrush(QColor("#6b6b6b")); // Gray
+                painter->drawRoundedRect(badgeRect, 4, 4);
+                painter->setPen(Qt::white);
+                painter->drawText(badgeRect, Qt::AlignCenter, moreText);
+                x += badgeRect.width() + 4;
+                break;
+            }
+            
             QRect badgeRect(x, rect.top() + (rect.height() - 16) / 2, fm.horizontalAdvance(ref) + 12, 16);
             
             QColor bgColor = QColor("#0E639C"); // Default blue
             if (ref == "HEAD" || ref.startsWith("HEAD ->")) bgColor = QColor("#238636"); // Green
             else if (ref.startsWith("origin/")) bgColor = QColor("#DA3633"); // Red for remote
+            else if (ref.startsWith("tag: ")) bgColor = QColor("#E2C08D"); // Yellow for tags
             
             painter->setPen(Qt::NoPen);
             painter->setBrush(bgColor);
             painter->drawRoundedRect(badgeRect, 4, 4);
-
+            
             painter->setPen(Qt::white);
             painter->drawText(badgeRect, Qt::AlignCenter, ref);
-
-            x += badgeRect.width() + 6;
+            
+            x += badgeRect.width() + 4;
+            drawn++;
         }
 
         QRect textRect = rect;
