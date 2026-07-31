@@ -46,39 +46,42 @@ void CommitGraphDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
         
         int drawn = 0;
         for (const QString &ref : refs) {
-            // UI level filter just in case the data layer filter fails or is bypassed
-            if (ref.startsWith("origin/") && !ref.endsWith("/main") && !ref.endsWith("/master") && !ref.endsWith("/HEAD")) {
+            // UI level filter: hide feature branches and HEAD refs to keep it clean like SmartGit
+            if (ref == "HEAD" || ref.startsWith("HEAD ->") || ref.endsWith("/HEAD")) {
+                continue;
+            }
+            if (ref.startsWith("origin/") && !ref.endsWith("/main") && !ref.endsWith("/master")) {
                 continue;
             }
             
             if (drawn >= maxBadges && refs.size() > maxBadges) {
                 QString moreText = QString("+%1 more").arg(refs.size() - maxBadges);
-                badgesToDraw.append({moreText, QColor("#6b6b6b"), fm.horizontalAdvance(moreText) + 12});
+                badgesToDraw.append({moreText, QColor("#6b6b6b"), fm.horizontalAdvance(moreText) + 8});
                 break;
             }
             
-            QColor bgColor = QColor("#0E639C"); // Default blue
-            if (ref == "HEAD" || ref.startsWith("HEAD ->")) bgColor = QColor("#238636"); // Green
-            else if (ref.startsWith("origin/")) bgColor = QColor("#DA3633"); // Red for remote
-            else if (ref.startsWith("tag: ")) bgColor = QColor("#E2C08D"); // Yellow for tags
+            QColor bgColor = QColor("#0E639C"); // Default blue (Local)
+            if (ref.startsWith("origin/")) bgColor = QColor("#DA3633"); // Red (Remote)
+            else if (ref.startsWith("tag: ")) bgColor = QColor("#E2C08D"); // Yellow (Tags)
             
-            badgesToDraw.append({ref, bgColor, fm.horizontalAdvance(ref) + 12});
+            badgesToDraw.append({ref, bgColor, fm.horizontalAdvance(ref) + 8});
             drawn++;
         }
         
         // Draw Badges (Left Aligned)
         int currentX = rect.left() + 4;
         for (const Badge &b : badgesToDraw) {
-            QRect badgeRect(currentX, rect.top() + (rect.height() - 16) / 2, b.width, 16);
+            QRect badgeRect(currentX, rect.top() + (rect.height() - 18) / 2, b.width, 18);
             
-            painter->setPen(Qt::NoPen);
-            painter->setBrush(b.color);
-            painter->drawRoundedRect(badgeRect, 4, 4);
+            // SmartGit minimalist style: subtle border, no background, colored text
+            painter->setPen(QPen(b.color, 1));
+            painter->setBrush(Qt::NoBrush);
+            painter->drawRoundedRect(badgeRect, 3, 3);
             
-            painter->setPen(Qt::white);
+            painter->setPen(b.color);
             painter->drawText(badgeRect, Qt::AlignCenter, b.text);
             
-            currentX += b.width + 4;
+            currentX += b.width + 6;
         }
 
         painter->restore();
