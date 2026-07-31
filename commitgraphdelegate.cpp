@@ -22,13 +22,12 @@ QSize CommitGraphDelegate::sizeHint(const QStyleOptionViewItem &option, const QM
 
 void CommitGraphDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
 {
-    if (index.column() == CommitGraphModel::ColMessage) {
+    if (index.column() == CommitGraphModel::ColBranches) {
         if (option.state & QStyle::State_Selected) {
             painter->fillRect(option.rect, QColor("#062f4a")); // Exact match to stylesheet
         }
 
         QStringList refs = index.data(Qt::UserRole + 1).toStringList();
-        QString msg = index.data(Qt::DisplayRole).toString();
 
         painter->save();
         painter->setRenderHint(QPainter::Antialiasing);
@@ -36,8 +35,7 @@ void CommitGraphDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
         QRect rect = option.rect;
         QFontMetrics fm(painter->font());
         
-        // 1. Prepare badges to draw
-        int maxBadges = 3; // We can show 3 since they are right-aligned
+        int maxBadges = 5; // More space in dedicated column
         
         struct Badge {
             QString text;
@@ -68,24 +66,8 @@ void CommitGraphDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
             drawn++;
         }
         
-        int totalBadgesWidth = 0;
-        for (const Badge &b : badgesToDraw) {
-            totalBadgesWidth += b.width + 4; // 4px spacing
-        }
-        
-        // 2. Draw Message Text (Left Aligned)
-        QRect textRect = rect;
-        textRect.setLeft(rect.left() + 4);
-        if (totalBadgesWidth > 0) {
-            textRect.setRight(rect.right() - totalBadgesWidth - 4);
-        }
-        
-        painter->setPen(option.state & QStyle::State_Selected ? option.palette.highlightedText().color() : option.palette.text().color());
-        QString elidedMsg = fm.elidedText(msg, Qt::ElideRight, textRect.width() - 4);
-        painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter, elidedMsg);
-        
-        // 3. Draw Badges (Right Aligned)
-        int currentX = rect.right() - totalBadgesWidth;
+        // Draw Badges (Left Aligned)
+        int currentX = rect.left() + 4;
         for (const Badge &b : badgesToDraw) {
             QRect badgeRect(currentX, rect.top() + (rect.height() - 16) / 2, b.width, 16);
             

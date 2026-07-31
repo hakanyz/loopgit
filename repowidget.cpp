@@ -259,6 +259,7 @@ void RepoWidget::setupCentralWidget() {
     
     m_logTable->setColumnWidth(CommitGraphModel::ColGraph, 120);
     m_logTable->setColumnWidth(CommitGraphModel::ColHash, 70);
+    m_logTable->setColumnWidth(CommitGraphModel::ColBranches, 150);
     m_logTable->setColumnWidth(CommitGraphModel::ColAuthor, 120);
     m_logTable->setColumnWidth(CommitGraphModel::ColDate, 115);
 
