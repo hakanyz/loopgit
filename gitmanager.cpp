@@ -1,4 +1,4 @@
-﻿#include "gitmanager.h"
+#include "gitmanager.h"
 #include <git2.h>
 #include <QDir>
 #include <QTimeZone>
@@ -314,6 +314,11 @@ QVector<CommitInfo> GitManager::getLog(int maxCount)
     
     for (const auto &b : branches) {
         if (!b.targetHash.isEmpty()) {
+            if (b.isRemote) {
+                if (!b.name.endsWith("/main") && !b.name.endsWith("/master") && !b.name.endsWith("/HEAD")) {
+                    continue; // Skip polluting UI with non-main remote branches
+                }
+            }
             commitToRefs[b.targetHash].append(b.name);
         }
     }
