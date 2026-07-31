@@ -48,6 +48,11 @@ void CommitGraphDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
         
         int drawn = 0;
         for (const QString &ref : refs) {
+            // UI level filter just in case the data layer filter fails or is bypassed
+            if (ref.startsWith("origin/") && !ref.endsWith("/main") && !ref.endsWith("/master") && !ref.endsWith("/HEAD")) {
+                continue;
+            }
+            
             if (drawn >= maxBadges && refs.size() > maxBadges) {
                 QString moreText = QString("+%1 more").arg(refs.size() - maxBadges);
                 badgesToDraw.append({moreText, QColor("#6b6b6b"), fm.horizontalAdvance(moreText) + 12});
