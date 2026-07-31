@@ -34,51 +34,65 @@ void CommitGraphDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
         painter->setRenderHint(QPainter::Antialiasing);
 
         QRect rect = option.rect;
-
-        int x = rect.left() + 4;
         QFontMetrics fm(painter->font());
         
-        int maxBadges = 2;
-        int drawn = 0;
+        // 1. Prepare badges to draw
+        int maxBadges = 3; // We can show 3 since they are right-aligned
         
+        struct Badge {
+            QString text;
+            QColor color;
+            int width;
+        };
+        QVector<Badge> badgesToDraw;
+        
+        int drawn = 0;
         for (const QString &ref : refs) {
             if (drawn >= maxBadges && refs.size() > maxBadges) {
                 QString moreText = QString("+%1 more").arg(refs.size() - maxBadges);
-                QRect badgeRect(x, rect.top() + (rect.height() - 16) / 2, fm.horizontalAdvance(moreText) + 12, 16);
-                painter->setPen(Qt::NoPen);
-                painter->setBrush(QColor("#6b6b6b")); // Gray
-                painter->drawRoundedRect(badgeRect, 4, 4);
-                painter->setPen(Qt::white);
-                painter->drawText(badgeRect, Qt::AlignCenter, moreText);
-                x += badgeRect.width() + 4;
+                badgesToDraw.append({moreText, QColor("#6b6b6b"), fm.horizontalAdvance(moreText) + 12});
                 break;
             }
-            
-            QRect badgeRect(x, rect.top() + (rect.height() - 16) / 2, fm.horizontalAdvance(ref) + 12, 16);
             
             QColor bgColor = QColor("#0E639C"); // Default blue
             if (ref == "HEAD" || ref.startsWith("HEAD ->")) bgColor = QColor("#238636"); // Green
             else if (ref.startsWith("origin/")) bgColor = QColor("#DA3633"); // Red for remote
             else if (ref.startsWith("tag: ")) bgColor = QColor("#E2C08D"); // Yellow for tags
             
+            badgesToDraw.append({ref, bgColor, fm.horizontalAdvance(ref) + 12});
+            drawn++;
+        }
+        
+        int totalBadgesWidth = 0;
+        for (const Badge &b : badgesToDraw) {
+            totalBadgesWidth += b.width + 4; // 4px spacing
+        }
+        
+        // 2. Draw Message Text (Left Aligned)
+        QRect textRect = rect;
+        textRect.setLeft(rect.left() + 4);
+        if (totalBadgesWidth > 0) {
+            textRect.setRight(rect.right() - totalBadgesWidth - 4);
+        }
+        
+        painter->setPen(option.state & QStyle::State_Selected ? option.palette.highlightedText().color() : option.palette.text().color());
+        QString elidedMsg = fm.elidedText(msg, Qt::ElideRight, textRect.width() - 4);
+        painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter, elidedMsg);
+        
+        // 3. Draw Badges (Right Aligned)
+        int currentX = rect.right() - totalBadgesWidth;
+        for (const Badge &b : badgesToDraw) {
+            QRect badgeRect(currentX, rect.top() + (rect.height() - 16) / 2, b.width, 16);
+            
             painter->setPen(Qt::NoPen);
-            painter->setBrush(bgColor);
+            painter->setBrush(b.color);
             painter->drawRoundedRect(badgeRect, 4, 4);
             
             painter->setPen(Qt::white);
-            painter->drawText(badgeRect, Qt::AlignCenter, ref);
+            painter->drawText(badgeRect, Qt::AlignCenter, b.text);
             
-            x += badgeRect.width() + 4;
-            drawn++;
+            currentX += b.width + 4;
         }
-
-        QRect textRect = rect;
-        textRect.setLeft(x);
-        painter->setPen(option.state & QStyle::State_Selected ? option.palette.highlightedText().color() : option.palette.text().color());
-        
-        // Use elided text if too long
-        QString elidedMsg = fm.elidedText(msg, Qt::ElideRight, textRect.width() - 4);
-        painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter, elidedMsg);
 
         painter->restore();
         return;
