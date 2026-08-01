@@ -683,12 +683,25 @@ void RepoWidget::onCommitSelected(const QItemSelection &selected, const QItemSel
 
     QModelIndex msgIndex = m_logModel->index(row, CommitGraphModel::ColMessage);
     QString msg = m_logModel->data(msgIndex, Qt::UserRole).toString();
+    QStringList refs = m_logModel->data(msgIndex, Qt::UserRole + 1).toStringList();
     
     QModelIndex authorIndex = m_logModel->index(row, CommitGraphModel::ColAuthor);
     QString author = m_logModel->data(authorIndex, Qt::UserRole).toString();
     
     QModelIndex dateIndex = m_logModel->index(row, CommitGraphModel::ColDate);
     QDateTime date = m_logModel->data(dateIndex, Qt::UserRole).toDateTime();
+    
+    QString branchesHtml;
+    if (!refs.isEmpty()) {
+        QStringList cleanedRefs;
+        for (const QString &r : refs) {
+            if (r == "HEAD" || r.startsWith("HEAD ->")) continue;
+            cleanedRefs.append(r.toHtmlEscaped());
+        }
+        if (!cleanedRefs.isEmpty()) {
+            branchesHtml = QStringLiteral("<div style='font-size: 12px; color: #569CD6; margin-bottom: 8px;'><b>Branches:</b> %1</div>").arg(cleanedRefs.join(", "));
+        }
+    }
 
     QString detailsHtml = QStringLiteral(
         "<div style='font-family: sans-serif;'>"
@@ -696,8 +709,9 @@ void RepoWidget::onCommitSelected(const QItemSelection &selected, const QItemSel
         "<div style='font-size: 12px; color: #808080; margin-bottom: 8px;'>"
         "<b>%2</b> committed on %3 &nbsp;&nbsp;&nbsp; <code>%4</code>"
         "</div>"
+        "%5"
         "</div>"
-    ).arg(msg.toHtmlEscaped(), author.toHtmlEscaped(), date.toString("yyyy-MM-dd hh:mm:ss"), m_selectedCommitId);
+    ).arg(msg.toHtmlEscaped(), author.toHtmlEscaped(), date.toString("yyyy-MM-dd hh:mm:ss"), m_selectedCommitId, branchesHtml);
     
     m_commitDetailsText->setHtml(detailsHtml);
     

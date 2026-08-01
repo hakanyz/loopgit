@@ -47,30 +47,33 @@ void CommitGraphDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
             else hasLocal = true;
         }
         
-        // Draw Dot Indicators (Left Aligned)
+        // Draw Letter Badges (Left Aligned)
         int currentX = rect.left() + 4;
-        int dotSize = 8;
-        int y = rect.top() + (rect.height() - dotSize) / 2;
+        int boxSize = 14;
+        int y = rect.top() + (rect.height() - boxSize) / 2;
         
-        painter->setPen(Qt::NoPen);
+        painter->setFont(QFont(painter->font().family(), 7, QFont::Bold)); // Small bold font for letters
         
-        if (hasLocal) {
-            painter->setBrush(QColor("#0E639C")); // Default blue (Local)
-            painter->drawEllipse(currentX, y, dotSize, dotSize);
-            currentX += dotSize + 4;
-        }
-        if (hasRemote) {
-            painter->setBrush(QColor("#DA3633")); // Red (Remote)
-            painter->drawEllipse(currentX, y, dotSize, dotSize);
-            currentX += dotSize + 4;
-        }
-        if (hasTag) {
-            painter->setBrush(QColor("#E2C08D")); // Yellow (Tags)
-            painter->drawEllipse(currentX, y, dotSize, dotSize);
-            currentX += dotSize + 4;
-        }
+        auto drawBox = [&](QColor color, const QString& letter) {
+            QRect boxRect(currentX, y, boxSize, boxSize);
+            painter->setPen(Qt::NoPen);
+            painter->setBrush(color);
+            painter->drawRoundedRect(boxRect, 2, 2);
+            
+            painter->setPen(Qt::white);
+            painter->drawText(boxRect, Qt::AlignCenter, letter);
+            
+            currentX += boxSize + 4;
+        };
         
-        // Draw Message Text right after dots
+        if (hasLocal)  drawBox(QColor("#0E639C"), "L");
+        if (hasRemote) drawBox(QColor("#DA3633"), "R");
+        if (hasTag)    drawBox(QColor("#E2C08D"), "T");
+        
+        // Reset font for message text
+        painter->setFont(option.font);
+        
+        // Draw Message Text right after boxes
         QRect textRect = rect;
         textRect.setLeft(currentX + 4); // Added a bit more padding between dots and text
         
