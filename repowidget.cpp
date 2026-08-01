@@ -1,5 +1,7 @@
 #include <QProgressDialog>
 #include <QSettings>
+#include <QGuiApplication>
+#include <QClipboard>
 #include "repowidget.h"
 #include "gitmanager.h"
 #include "diffviewwidget.h"
@@ -439,7 +441,7 @@ void RepoWidget::connectSignals()
 
     // Commit context menus
     m_logTable->setContextMenuPolicy(Qt::CustomContextMenu);
-    connect(m_logTable, &QTableView::customContextMenuRequested, this, &RepoWidget::showCommitContextMenu);
+    connect(m_logTable, &QTableView::doubleClicked, this, &RepoWidget::onCommitDoubleClicked);
 
     connect(m_commitBtn, &QPushButton::clicked,
             this, &RepoWidget::doCommit);
@@ -1268,48 +1270,7 @@ void RepoWidget::showLocalFilesContextMenu(const QPoint &pos)
     }
 }
 
-void RepoWidget::showCommitContextMenu(const QPoint &pos)
-{
-    QModelIndex index = m_logTable->indexAt(pos);
-    if (!index.isValid()) return;
 
-    QModelIndex sourceIndex = m_logProxyModel->mapToSource(index);
-    int row = sourceIndex.row();
-    QModelIndex hashIndex = m_logModel->index(row, CommitGraphModel::ColHash);
-    QString commitId = m_logModel->data(hashIndex, Qt::UserRole).toString();
-    
-    QModelIndex msgIndex = m_logModel->index(row, CommitGraphModel::ColMessage);
-    QString commitMsg = m_logModel->data(msgIndex, Qt::DisplayRole).toString();
-
-    QMenu menu(this);
-    QAction *actBranch = menu.addAction(QStringLiteral("Create Branch Here..."));
-    menu.addSeparator();
-    QAction *actCherry = menu.addAction(QStringLiteral("Cherry-Pick this commit"));
-    QAction *actRevert = menu.addAction(QStringLiteral("Revert this commit"));
-    
-    QAction *res = menu.exec(m_logTable->viewport()->mapToGlobal(pos));
-    if (res == actBranch) {
-        bool ok;
-        QString name = QInputDialog::getText(this, "Create Branch", 
-            QStringLiteral("Enter new branch name at commit:\n%1").arg(commitMsg), 
-            QLineEdit::Normal, "", &ok);
-            
-        if (ok && !name.isEmpty()) {
-            if (m_git->createBranchAt(name, commitId)) refreshAll();
-            else QMessageBox::critical(this, "Error", m_git->lastError());
-        }
-    } else if (res == actCherry) {
-        if (QMessageBox::question(this, "Cherry-Pick", QStringLiteral("Cherry-pick commit %1?").arg(commitId.left(7))) == QMessageBox::Yes) {
-            if (m_git->cherryPick(commitId)) refreshAll();
-            else QMessageBox::critical(this, "Error", m_git->lastError());
-        }
-    } else if (res == actRevert) {
-        if (QMessageBox::question(this, "Revert", QStringLiteral("Revert commit %1?").arg(commitId.left(7))) == QMessageBox::Yes) {
-            if (m_git->revertCommit(commitId)) refreshAll();
-            else QMessageBox::critical(this, "Error", m_git->lastError());
-        }
-    }
-}
 
 void RepoWidget::showDirTreeContextMenu(const QPoint &pos)
 {
@@ -1414,10 +1375,21 @@ void RepoWidget::showHistoryContextMenu(const QPoint &pos)
     QAction *actCreateTag = nullptr;
     QAction *actCompare = nullptr;
 
+    QAction *actBranch = nullptr;
+    QAction *actRevert = nullptr;
+    QAction *actCopyHash = nullptr;
+    QAction *actCopyMessage = nullptr;
+
     if (selection.size() == 1) {
         menu.addSeparator();
+        actBranch = menu.addAction(QStringLiteral("Create Branch Here..."));
+        menu.addSeparator();
         actCherryPick = menu.addAction(QStringLiteral("Cherry-pick this commit"));
+        actRevert = menu.addAction(QStringLiteral("Revert this commit"));
         actCreateTag = menu.addAction(QStringLiteral("Create Tag here"));
+        menu.addSeparator();
+        actCopyHash = menu.addAction(QStringLiteral("Copy Commit Hash"));
+        actCopyMessage = menu.addAction(QStringLiteral("Copy Commit Message"));
     } else if (selection.size() == 2) {
         menu.addSeparator();
         actCompare = menu.addAction(QStringLiteral("Compare Selected Commits"));
@@ -1457,13 +1429,14 @@ void RepoWidget::showHistoryContextMenu(const QPoint &pos)
             }
         }
     } else if (res == actReword) {
-        QVariant data = m_logModel->data(selection[0], CommitGraphModel::GraphNodeRole);
-        GraphCommit gc = data.value<GraphCommit>();
+        int row = selection[0].row();
+        QModelIndex msgIndex = m_logModel->index(row, CommitGraphModel::ColMessage);
+        QString oldMsg = m_logModel->data(msgIndex, Qt::UserRole).toString();
         bool ok;
         QString text = QInputDialog::getMultiLineText(this, "Reword Commit",
                                                       "Enter the new commit message:",
-                                                      gc.commit.message, &ok);
-        if (ok && !text.isEmpty() && text != gc.commit.message) {
+                                                      oldMsg, &ok);
+        if (ok && !text.isEmpty() && text != oldMsg) {
             if (m_git->commit(text, true)) { // true = amend
                 refreshAll();
             } else {
@@ -1471,13 +1444,14 @@ void RepoWidget::showHistoryContextMenu(const QPoint &pos)
             }
         }
     } else if (res == actCherryPick) {
-        QVariant data = m_logModel->data(selection[0], CommitGraphModel::GraphNodeRole);
-        GraphCommit gc = data.value<GraphCommit>();
+        int row = selection[0].row();
+        QString commitId = m_logModel->data(m_logModel->index(row, CommitGraphModel::ColHash), Qt::UserRole).toString();
+        QString shortId = m_logModel->data(m_logModel->index(row, CommitGraphModel::ColHash), Qt::DisplayRole).toString();
         
         if (QMessageBox::question(this, "Cherry-pick", 
-            QStringLiteral("Are you sure you want to cherry-pick commit '%1' into your current branch?").arg(gc.commit.shortId)) == QMessageBox::Yes) 
+            QStringLiteral("Are you sure you want to cherry-pick commit '%1' into your current branch?").arg(shortId)) == QMessageBox::Yes) 
         {
-            if (m_git->cherryPick(gc.commit.id)) {
+            if (m_git->cherryPick(commitId)) {
                 QMessageBox::information(this, "Success", "Cherry-pick successful. The changes are now in your working directory/index. You can commit them from the Local Files view.");
                 refreshAll();
             } else {
@@ -1485,28 +1459,84 @@ void RepoWidget::showHistoryContextMenu(const QPoint &pos)
             }
         }
     } else if (res == actCreateTag) {
-        QVariant data = m_logModel->data(selection[0], CommitGraphModel::GraphNodeRole);
-        GraphCommit gc = data.value<GraphCommit>();
+        int row = selection[0].row();
+        QString commitId = m_logModel->data(m_logModel->index(row, CommitGraphModel::ColHash), Qt::UserRole).toString();
         
         bool ok;
         QString tagName = QInputDialog::getText(this, "Create Tag",
                                                 "Enter tag name (e.g. v1.0.0):",
                                                 QLineEdit::Normal, "", &ok);
         if (ok && !tagName.isEmpty()) {
-            if (m_git->createTag(tagName, gc.commit.id)) {
+            if (m_git->createTag(tagName, commitId)) {
                 refreshAll();
             } else {
                 QMessageBox::critical(this, "Error", m_git->lastError());
             }
         }
     } else if (res == actCompare) {
-        QVariant data1 = m_logModel->data(selection[0], CommitGraphModel::GraphNodeRole);
-        QVariant data2 = m_logModel->data(selection[1], CommitGraphModel::GraphNodeRole);
-        GraphCommit gc1 = data1.value<GraphCommit>();
-        GraphCommit gc2 = data2.value<GraphCommit>();
+        int row1 = selection[0].row();
+        int row2 = selection[1].row();
+        QString commitId1 = m_logModel->data(m_logModel->index(row1, CommitGraphModel::ColHash), Qt::UserRole).toString();
+        QString commitId2 = m_logModel->data(m_logModel->index(row2, CommitGraphModel::ColHash), Qt::UserRole).toString();
         
-        CompareDialog dlg(m_git, gc1.commit.id, gc2.commit.id, this);
+        CompareDialog dlg(m_git, commitId1, commitId2, this);
         dlg.exec();
+    } else if (res == actBranch) {
+        int row = selection[0].row();
+        QString commitId = m_logModel->data(m_logModel->index(row, CommitGraphModel::ColHash), Qt::UserRole).toString();
+        QString shortId = m_logModel->data(m_logModel->index(row, CommitGraphModel::ColHash), Qt::DisplayRole).toString();
+        bool ok;
+        QString name = QInputDialog::getText(this, "Check Out", 
+            QStringLiteral("<span style='font-size: 13px;'>Add branch at commit <b style='color: #00D2FF; font-size: 15px;'>%1</b></span><br><br>Enter the name of the local branch to create.<br><span style='color: #aaaaaa;'>It will be checked out.</span>").arg(shortId), 
+            QLineEdit::Normal, "", &ok);
+            
+        if (ok && !name.isEmpty()) {
+            if (m_git->createBranchAt(name, commitId)) {
+                if (m_git->checkoutBranch(name)) refreshAll();
+                else QMessageBox::critical(this, "Error", m_git->lastError());
+            }
+            else QMessageBox::critical(this, "Error", m_git->lastError());
+        }
+    } else if (res == actRevert) {
+        int row = selection[0].row();
+        QString commitId = m_logModel->data(m_logModel->index(row, CommitGraphModel::ColHash), Qt::UserRole).toString();
+        QString shortId = m_logModel->data(m_logModel->index(row, CommitGraphModel::ColHash), Qt::DisplayRole).toString();
+        if (QMessageBox::question(this, "Revert", QStringLiteral("Revert commit %1?").arg(shortId)) == QMessageBox::Yes) {
+            if (m_git->revertCommit(commitId)) refreshAll();
+            else QMessageBox::critical(this, "Error", m_git->lastError());
+        }
+    } else if (res == actCopyHash) {
+        int row = selection[0].row();
+        QString commitId = m_logModel->data(m_logModel->index(row, CommitGraphModel::ColHash), Qt::UserRole).toString();
+        QGuiApplication::clipboard()->setText(commitId);
+    } else if (res == actCopyMessage) {
+        int row = selection[0].row();
+        QString msg = m_logModel->data(m_logModel->index(row, CommitGraphModel::ColMessage), Qt::UserRole).toString();
+        QGuiApplication::clipboard()->setText(msg);
+    }
+}
+
+void RepoWidget::onCommitDoubleClicked(const QModelIndex &index)
+{
+    if (!index.isValid()) return;
+
+    QModelIndex sourceIndex = m_logProxyModel->mapToSource(index);
+    int row = sourceIndex.row();
+    QString commitId = m_logModel->data(m_logModel->index(row, CommitGraphModel::ColHash), Qt::UserRole).toString();
+    QString shortId = m_logModel->data(m_logModel->index(row, CommitGraphModel::ColHash), Qt::DisplayRole).toString();
+
+    bool ok;
+    QString name = QInputDialog::getText(this, "Check Out", 
+        QStringLiteral("<span style='font-size: 13px;'>Add branch at commit <b style='color: #00D2FF; font-size: 15px;'>%1</b></span><br><br>Enter the name of the local branch to create.<br><span style='color: #aaaaaa;'>It will be checked out.</span>").arg(shortId), 
+        QLineEdit::Normal, "", &ok);
+        
+    if (ok && !name.isEmpty()) {
+        if (m_git->createBranchAt(name, commitId)) {
+            if (m_git->checkoutBranch(name)) refreshAll();
+            else QMessageBox::critical(this, "Error", m_git->lastError());
+        } else {
+            QMessageBox::critical(this, "Error", m_git->lastError());
+        }
     }
 }
  

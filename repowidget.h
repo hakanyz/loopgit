@@ -75,11 +75,11 @@ private slots:
     // ── Commit Graph and Commit Diff ────────────────────
     void onCommitSelected(const QItemSelection &selected, const QItemSelection &deselected);
     void onCommitFileClicked(QTreeWidgetItem *item, int column);
-    void showCommitContextMenu(const QPoint &pos);
     void showBranchContextMenu(const QPoint &pos);
     void showLocalFilesContextMenu(const QPoint &pos);
     void showDirTreeContextMenu(const QPoint &pos);
     void showHistoryContextMenu(const QPoint &pos);
+    void onCommitDoubleClicked(const QModelIndex &index);
 
     // ── Misc ────────────────────────────────────────────
     void onRepoChanged(const QString &path);
