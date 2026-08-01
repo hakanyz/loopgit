@@ -36,58 +36,43 @@ void CommitGraphDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
         QRect rect = option.rect;
         QFontMetrics fm(painter->font());
         
-        int maxBadges = 5; // More space in dedicated column
+        bool hasLocal = false;
+        bool hasRemote = false;
+        bool hasTag = false;
         
-        struct Badge {
-            QString text;
-            QColor color;
-            int width;
-        };
-        QVector<Badge> badgesToDraw;
-        
-        int drawn = 0;
         for (const QString &ref : refs) {
-            // UI level filter: hide feature branches and HEAD refs to keep it clean like SmartGit
-            if (ref == "HEAD" || ref.startsWith("HEAD ->") || ref.endsWith("/HEAD")) {
-                continue;
-            }
-            if (ref.startsWith("origin/") && !ref.endsWith("/main") && !ref.endsWith("/master")) {
-                continue;
-            }
-            
-            if (drawn >= maxBadges && refs.size() > maxBadges) {
-                QString moreText = QString("+%1 more").arg(refs.size() - maxBadges);
-                badgesToDraw.append({moreText, QColor("#6b6b6b"), fm.horizontalAdvance(moreText) + 8});
-                break;
-            }
-            
-            QColor bgColor = QColor("#0E639C"); // Default blue (Local)
-            if (ref.startsWith("origin/")) bgColor = QColor("#DA3633"); // Red (Remote)
-            else if (ref.startsWith("tag: ")) bgColor = QColor("#E2C08D"); // Yellow (Tags)
-            
-            badgesToDraw.append({ref, bgColor, fm.horizontalAdvance(ref) + 8});
-            drawn++;
+            if (ref == "HEAD" || ref.startsWith("HEAD ->")) continue; // Skip HEAD entirely
+            if (ref.startsWith("origin/")) hasRemote = true;
+            else if (ref.startsWith("tag: ")) hasTag = true;
+            else hasLocal = true;
         }
         
-        // Draw Badges (Left Aligned)
+        // Draw Dot Indicators (Left Aligned)
         int currentX = rect.left() + 4;
-        for (const Badge &b : badgesToDraw) {
-            QRect badgeRect(currentX, rect.top() + (rect.height() - 18) / 2, b.width, 18);
-            
-            // SmartGit minimalist style: subtle border, no background, colored text
-            painter->setPen(QPen(b.color, 1));
-            painter->setBrush(Qt::NoBrush);
-            painter->drawRoundedRect(badgeRect, 3, 3);
-            
-            painter->setPen(b.color);
-            painter->drawText(badgeRect, Qt::AlignCenter, b.text);
-            
-            currentX += b.width + 6;
+        int dotSize = 8;
+        int y = rect.top() + (rect.height() - dotSize) / 2;
+        
+        painter->setPen(Qt::NoPen);
+        
+        if (hasLocal) {
+            painter->setBrush(QColor("#0E639C")); // Default blue (Local)
+            painter->drawEllipse(currentX, y, dotSize, dotSize);
+            currentX += dotSize + 4;
+        }
+        if (hasRemote) {
+            painter->setBrush(QColor("#DA3633")); // Red (Remote)
+            painter->drawEllipse(currentX, y, dotSize, dotSize);
+            currentX += dotSize + 4;
+        }
+        if (hasTag) {
+            painter->setBrush(QColor("#E2C08D")); // Yellow (Tags)
+            painter->drawEllipse(currentX, y, dotSize, dotSize);
+            currentX += dotSize + 4;
         }
         
-        // Draw Message Text right after badges
+        // Draw Message Text right after dots
         QRect textRect = rect;
-        textRect.setLeft(currentX);
+        textRect.setLeft(currentX + 4); // Added a bit more padding between dots and text
         
         painter->setPen(option.state & QStyle::State_Selected ? option.palette.highlightedText().color() : option.palette.text().color());
         QString elidedMsg = fm.elidedText(msg, Qt::ElideRight, textRect.width() - 4);

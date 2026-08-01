@@ -189,6 +189,17 @@ QVariant CommitGraphModel::data(const QModelIndex &index, int role) const
     else if (role == Qt::UserRole + 1 && index.column() == ColMessage) {
         return gc.commit.refs;
     }
+    else if (role == Qt::ToolTipRole && index.column() == ColMessage) {
+        if (gc.commit.refs.isEmpty()) return QVariant();
+        
+        QStringList cleanedRefs;
+        for (const QString &r : gc.commit.refs) {
+            if (r == "HEAD" || r.startsWith("HEAD ->")) continue; // Skip redundant HEAD
+            cleanedRefs.append(r);
+        }
+        if (cleanedRefs.isEmpty()) return QVariant();
+        return cleanedRefs.join("\n");
+    }
     else if (role == Qt::ForegroundRole) {
         return QColor("#D4D4D4");
     }

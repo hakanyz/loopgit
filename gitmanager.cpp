@@ -314,11 +314,7 @@ QVector<CommitInfo> GitManager::getLog(int maxCount)
     
     for (const auto &b : branches) {
         if (!b.targetHash.isEmpty()) {
-            if (b.isRemote) {
-                if (!b.name.endsWith("/main") && !b.name.endsWith("/master") && !b.name.endsWith("/HEAD")) {
-                    continue; // Skip polluting UI with non-main remote branches
-                }
-            }
+            // No filtering here, let the UI handle how to display them compactly
             commitToRefs[b.targetHash].append(b.name);
         }
     }
