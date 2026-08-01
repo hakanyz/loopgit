@@ -1,4 +1,4 @@
-﻿#include "mainwindow.h"
+#include "mainwindow.h"
 #include "repowidget.h"
 #include "gitmanager.h"
 
@@ -818,6 +818,13 @@ void MainWindow::cloneRepository()
         if (url.isEmpty() || dest.isEmpty()) return;
 
         QSettings settings("MyCompany", "LoopGit");
+        QString user = settings.value("github/username", "").toString();
+        QString token = settings.value("github/token", "").toString();
+        
+        if (user.isEmpty() || token.isEmpty()) {
+            QMessageBox::warning(this, "Credentials Required", "Please configure your GitHub credentials first.\nGo to File -> Credentials...");
+            return;
+        }
 
         QProgressDialog *progress = new QProgressDialog("Cloning repository, please wait...", nullptr, 0, 0, this);
         progress->setWindowTitle("Cloning");
@@ -826,7 +833,7 @@ void MainWindow::cloneRepository()
         progress->show();
 
         GitManager *tempGit = new GitManager(this);
-        tempGit->setCredentials(settings.value("github/username", "").toString(), settings.value("github/token", "").toString());
+        tempGit->setCredentials(user, token);
 
         QFutureWatcher<bool> *watcher = new QFutureWatcher<bool>(this);
         connect(watcher, &QFutureWatcher<bool>::finished, this, [this, watcher, tempGit, dest, progress]() {
