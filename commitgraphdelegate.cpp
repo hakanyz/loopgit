@@ -45,14 +45,18 @@ void CommitGraphDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
             }
             
             QRect rect = option.rect;
-            int currentX = rect.left() + 4;
             int boxSize = 14;
             int y = rect.top() + (rect.height() - boxSize) / 2;
             
             if (!hasLocal && !hasRemote && !hasTag) {
+                int dashX = rect.left() + (rect.width() - 6) / 2;
                 painter->setPen(QPen(QColor("#666666"), 1));
-                painter->drawLine(currentX + 2, rect.center().y(), currentX + 8, rect.center().y());
+                painter->drawLine(dashX, rect.center().y(), dashX + 6, rect.center().y());
             } else {
+                int totalBoxes = (hasLocal ? 1 : 0) + (hasRemote ? 1 : 0) + (hasTag ? 1 : 0);
+                int totalWidth = (totalBoxes * boxSize) + ((totalBoxes - 1) * 4);
+                int currentX = rect.left() + (rect.width() - totalWidth) / 2;
+                
                 painter->setFont(QFont(painter->font().family(), 7, QFont::Bold)); // Small bold font for letters
                 
                 auto drawBox = [&](QColor color, const QString& letter) {

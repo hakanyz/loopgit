@@ -253,15 +253,15 @@ void RepoWidget::setupCentralWidget() {
     m_logTable->verticalHeader()->setDefaultSectionSize(28);
     
     QHeaderView *hHeader = m_logTable->horizontalHeader();
-    hHeader->setStretchLastSection(true);
+    hHeader->setStretchLastSection(false); // Do not stretch the last section (Date)
     hHeader->setSectionResizeMode(CommitGraphModel::ColGraph, QHeaderView::Fixed);
-    hHeader->setSectionResizeMode(CommitGraphModel::ColMessage, QHeaderView::Stretch);
+    hHeader->setSectionResizeMode(CommitGraphModel::ColMessage, QHeaderView::Stretch); // Stretch Message instead
     
     m_logTable->setColumnWidth(CommitGraphModel::ColGraph, 60);
     m_logTable->setColumnWidth(CommitGraphModel::ColHash, 70);
     m_logTable->setColumnWidth(CommitGraphModel::ColBranches, 60);
     m_logTable->setColumnWidth(CommitGraphModel::ColAuthor, 120);
-    m_logTable->setColumnWidth(CommitGraphModel::ColDate, 115);
+    m_logTable->setColumnWidth(CommitGraphModel::ColDate, 120);
 
     m_historyFilesTree = new QTreeWidget;
     m_historyFilesTree->setHeaderLabels({"Status", "Name", "Path"});
