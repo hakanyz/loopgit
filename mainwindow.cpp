@@ -1,4 +1,4 @@
-#include "mainwindow.h"
+﻿#include "mainwindow.h"
 #include "repowidget.h"
 #include "gitmanager.h"
 
@@ -20,6 +20,9 @@
 #include <QPushButton>
 #include <QDialogButtonBox>
 #include <QDialog>
+#include <QProgressDialog>
+#include <QFutureWatcher>
+#include <QtConcurrent>
 #include "settingsdialog.h"
 #include "appsettingsdialog.h"
 #include "reflogdialog.h"
@@ -338,16 +341,16 @@ void MainWindow::setupToolBar()
     m_actHistory->setCheckable(true);
     m_toolBar->addAction(m_actHistory);
 
-    // ── Group 1: Views ──
+    // â”€â”€ Group 1: Views â”€â”€
     m_toolBar->addSeparator();
 
-    // ── Gap between Views and Sync ──
+    // â”€â”€ Gap between Views and Sync â”€â”€
     QWidget *gap1 = new QWidget(this);
     gap1->setFixedWidth(24);
     gap1->setStyleSheet("background: transparent;");
     m_toolBar->addWidget(gap1);
 
-    // ── Group 2: Sync Operations ──
+    // â”€â”€ Group 2: Sync Operations â”€â”€
     m_actFetch = new QAction(QIcon(":/resources/icons/fetch.svg"), "Fetch", this);
     m_actFetch->setShortcut(QKeySequence("Ctrl+F"));
     m_actFetch->setToolTip("Fetch from remote (Ctrl+F)");
@@ -382,13 +385,13 @@ void MainWindow::setupToolBar()
     m_actTerminal->setToolTip("Open Terminal in repository directory (Ctrl+T)");
     m_toolBar->addAction(m_actTerminal);
 
-    // ── Wide gap between Sync and Branch tools ──
+    // â”€â”€ Wide gap between Sync and Branch tools â”€â”€
     QWidget *gap2 = new QWidget(this);
     gap2->setFixedWidth(32);
     gap2->setStyleSheet("background: transparent;");
     m_toolBar->addWidget(gap2);
 
-    // ── Visible divider line ──
+    // â”€â”€ Visible divider line â”€â”€
     QFrame *divider = new QFrame(this);
     divider->setFrameShape(QFrame::VLine);
     divider->setStyleSheet("color: #505050; background: transparent;");
@@ -400,7 +403,7 @@ void MainWindow::setupToolBar()
     gap3->setStyleSheet("background: transparent;");
     m_toolBar->addWidget(gap3);
 
-    // ── Group 3: Branch / GitFlow Operations ──
+    // â”€â”€ Group 3: Branch / GitFlow Operations â”€â”€
     m_actFeature = new QAction(QIcon(":/resources/icons/feature.svg"), "Feature", this);
     m_toolBar->addAction(m_actFeature);
 
@@ -418,7 +421,7 @@ void MainWindow::setupToolBar()
 
 
 
-    // ── Spacer pushes status label to far right ──
+    // â”€â”€ Spacer pushes status label to far right â”€â”€
     QWidget *spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     spacer->setStyleSheet("background: transparent;");
@@ -815,20 +818,33 @@ void MainWindow::cloneRepository()
         if (url.isEmpty() || dest.isEmpty()) return;
 
         QSettings settings("MyCompany", "LoopGit");
-        
-        GitManager tempGit;
-        tempGit.setCredentials(settings.value("github/username", "").toString(), settings.value("github/token", "").toString());
-        
-        statusBar()->showMessage("Cloning repository...");
-        QApplication::processEvents();
 
-        if (tempGit.cloneRepository(url, dest)) {
-            statusBar()->showMessage("Clone successful", 3000);
-            openRepositoryPath(dest);
-        } else {
-            QMessageBox::critical(this, "Clone Failed", tempGit.lastError());
-            statusBar()->showMessage("Clone failed", 3000);
-        }
+        QProgressDialog *progress = new QProgressDialog("Cloning repository, please wait...", nullptr, 0, 0, this);
+        progress->setWindowTitle("Cloning");
+        progress->setWindowModality(Qt::WindowModal);
+        progress->setAttribute(Qt::WA_DeleteOnClose);
+        progress->show();
+
+        GitManager *tempGit = new GitManager(this);
+        tempGit->setCredentials(settings.value("github/username", "").toString(), settings.value("github/token", "").toString());
+
+        QFutureWatcher<bool> *watcher = new QFutureWatcher<bool>(this);
+        connect(watcher, &QFutureWatcher<bool>::finished, this, [this, watcher, tempGit, dest, progress]() {
+            progress->close();
+            if (watcher->result()) {
+                statusBar()->showMessage("Clone successful", 3000);
+                openRepositoryPath(dest);
+            } else {
+                QMessageBox::critical(this, "Clone Failed", tempGit->lastError());
+                statusBar()->showMessage("Clone failed", 3000);
+            }
+            watcher->deleteLater();
+            tempGit->deleteLater();
+        });
+
+        watcher->setFuture(QtConcurrent::run([tempGit, url, dest]() {
+            return tempGit->cloneRepository(url, dest);
+        }));
     }
 }
 
@@ -878,7 +894,7 @@ void MainWindow::showAboutDialog()
         "<h2 style='margin-bottom:2px;'>LoopGit</h2>"
         "<p style='color:#888; margin-top:0;'>Version " + qApp->applicationVersion() + "</p>"
         "<p>A fast, modern Git GUI client built with <b>C++ / Qt6</b> and <b>libgit2</b>.</p>"
-        "<p>Built with ❤️ for developers who love speed and simplicity.</p>"
+        "<p>Built with â¤ï¸ for developers who love speed and simplicity.</p>"
         "<hr>"
         "<p><b>Author:</b> Hakan</p>"
         "<p><a href='https://github.com/hakanyz/loopgit'>github.com/hakanyz/loopgit</a></p>"
