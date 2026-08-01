@@ -36,46 +36,44 @@ void CommitGraphDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
         QRect rect = option.rect;
         QFontMetrics fm(painter->font());
         
-        // Draw SmartGit-style Pill Badges (Left Aligned)
-        int currentX = rect.left() + 4;
-        
-        QFont originalFont = painter->font();
-        QFont badgeFont = originalFont;
-        badgeFont.setPointSize(qMax(6, originalFont.pointSize() - 2)); // Smaller font for badges
-        painter->setFont(badgeFont);
-        QFontMetrics badgeFm(badgeFont);
+        bool hasLocal = false;
+        bool hasRemote = false;
+        bool hasTag = false;
         
         for (const QString &ref : refs) {
-            if (ref == "HEAD" || ref.startsWith("HEAD ->")) continue; // Skip HEAD
-            
-            QColor baseColor = QColor("#0E639C"); // Local (Blue)
-            if (ref.startsWith("origin/")) baseColor = QColor("#DA3633"); // Remote (Red)
-            else if (ref.startsWith("tag: ")) baseColor = QColor("#E2C08D"); // Tag (Yellow)
-            
-            int textWidth = badgeFm.horizontalAdvance(ref);
-            int badgeWidth = textWidth + 12; // 6px padding on each side
-            int badgeHeight = 16;
-            int y = rect.top() + (rect.height() - badgeHeight) / 2;
-            QRect badgeRect(currentX, y, badgeWidth, badgeHeight);
-            
-            // Translucent background
-            QColor bgColor = baseColor;
-            bgColor.setAlpha(40); // Soft, non-intrusive background
-            
-            painter->setPen(QPen(baseColor, 1)); // Thin solid border
-            painter->setBrush(bgColor);
-            painter->drawRoundedRect(badgeRect, badgeHeight / 2.0, badgeHeight / 2.0); // Perfect pill shape
-            
-            painter->setPen(baseColor); // Solid text color
-            painter->drawText(badgeRect, Qt::AlignCenter, ref);
-            
-            currentX += badgeWidth + 4;
+            if (ref == "HEAD" || ref.startsWith("HEAD ->")) continue; // Skip HEAD entirely
+            if (ref.startsWith("origin/")) hasRemote = true;
+            else if (ref.startsWith("tag: ")) hasTag = true;
+            else hasLocal = true;
         }
         
-        // Reset font for message text
-        painter->setFont(originalFont);
+        // Draw Letter Badges (Left Aligned)
+        int currentX = rect.left() + 4;
+        int boxSize = 14;
+        int y = rect.top() + (rect.height() - boxSize) / 2;
         
-        // Draw Message Text right after badges
+        painter->setFont(QFont(painter->font().family(), 7, QFont::Bold)); // Small bold font for letters
+        
+        auto drawBox = [&](QColor color, const QString& letter) {
+            QRect boxRect(currentX, y, boxSize, boxSize);
+            painter->setPen(Qt::NoPen);
+            painter->setBrush(color);
+            painter->drawRoundedRect(boxRect, 2, 2);
+            
+            painter->setPen(Qt::white);
+            painter->drawText(boxRect, Qt::AlignCenter, letter);
+            
+            currentX += boxSize + 4;
+        };
+        
+        if (hasLocal)  drawBox(QColor("#0E639C"), "L");
+        if (hasRemote) drawBox(QColor("#DA3633"), "R");
+        if (hasTag)    drawBox(QColor("#E2C08D"), "T");
+        
+        // Reset font for message text
+        painter->setFont(option.font);
+        
+        // Draw Message Text right after boxes
         QRect textRect = rect;
         textRect.setLeft(currentX + 4); // Added a bit more padding between dots and text
         
