@@ -186,7 +186,7 @@ QVariant CommitGraphModel::data(const QModelIndex &index, int role) const
     else if (role == GraphNodeRole && index.column() == ColGraph) {
         return QVariant::fromValue(gc.graph);
     }
-    else if (role == Qt::UserRole + 1 && index.column() == ColBranches) {
+    else if (role == Qt::UserRole + 1 && index.column() == ColMessage) {
         return gc.commit.refs;
     }
     else if (role == Qt::ForegroundRole) {
@@ -205,7 +205,6 @@ QVariant CommitGraphModel::headerData(int section, Qt::Orientation orientation, 
         switch (section) {
             case ColGraph:   return QStringLiteral("Graph");
             case ColHash:    return QStringLiteral("Hash");
-            case ColBranches:return QStringLiteral("Branches");
             case ColMessage: return QStringLiteral("Message");
             case ColAuthor:  return QStringLiteral("Author");
             case ColDate:    return QStringLiteral("Date");

@@ -22,12 +22,13 @@ QSize CommitGraphDelegate::sizeHint(const QStyleOptionViewItem &option, const QM
 
 void CommitGraphDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
 {
-    if (index.column() == CommitGraphModel::ColBranches) {
+    if (index.column() == CommitGraphModel::ColMessage) {
         if (option.state & QStyle::State_Selected) {
             painter->fillRect(option.rect, QColor("#062f4a")); // Exact match to stylesheet
         }
 
         QStringList refs = index.data(Qt::UserRole + 1).toStringList();
+        QString msg = index.data(Qt::DisplayRole).toString();
 
         painter->save();
         painter->setRenderHint(QPainter::Antialiasing);
@@ -83,6 +84,14 @@ void CommitGraphDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
             
             currentX += b.width + 6;
         }
+        
+        // Draw Message Text right after badges
+        QRect textRect = rect;
+        textRect.setLeft(currentX);
+        
+        painter->setPen(option.state & QStyle::State_Selected ? option.palette.highlightedText().color() : option.palette.text().color());
+        QString elidedMsg = fm.elidedText(msg, Qt::ElideRight, textRect.width() - 4);
+        painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter, elidedMsg);
 
         painter->restore();
         return;

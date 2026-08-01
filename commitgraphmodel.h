@@ -34,7 +34,6 @@ public:
     enum Columns {
         ColGraph = 0,
         ColHash,
-        ColBranches,
         ColMessage,
         ColAuthor,
         ColDate,
