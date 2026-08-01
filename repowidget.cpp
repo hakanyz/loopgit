@@ -259,6 +259,7 @@ void RepoWidget::setupCentralWidget() {
     
     m_logTable->setColumnWidth(CommitGraphModel::ColGraph, 60);
     m_logTable->setColumnWidth(CommitGraphModel::ColHash, 70);
+    m_logTable->setColumnWidth(CommitGraphModel::ColBranches, 60);
     m_logTable->setColumnWidth(CommitGraphModel::ColAuthor, 120);
     m_logTable->setColumnWidth(CommitGraphModel::ColDate, 115);
 
@@ -683,7 +684,9 @@ void RepoWidget::onCommitSelected(const QItemSelection &selected, const QItemSel
 
     QModelIndex msgIndex = m_logModel->index(row, CommitGraphModel::ColMessage);
     QString msg = m_logModel->data(msgIndex, Qt::UserRole).toString();
-    QStringList refs = m_logModel->data(msgIndex, Qt::UserRole + 1).toStringList();
+    
+    QModelIndex branchesIndex = m_logModel->index(row, CommitGraphModel::ColBranches);
+    QStringList refs = m_logModel->data(branchesIndex, Qt::UserRole + 1).toStringList();
     
     QModelIndex authorIndex = m_logModel->index(row, CommitGraphModel::ColAuthor);
     QString author = m_logModel->data(authorIndex, Qt::UserRole).toString();

@@ -170,9 +170,8 @@ QVariant CommitGraphModel::data(const QModelIndex &index, int role) const
         switch (index.column()) {
             case ColGraph:   return QVariant(); // Drawn by delegate
             case ColHash:    return gc.commit.shortId;
-            case ColMessage: {
-                return gc.commit.summary;
-            }
+            case ColBranches:return QVariant(); // Drawn by delegate
+            case ColMessage: return gc.commit.summary;
             case ColAuthor:  return gc.commit.authorName;
             case ColDate:    return gc.commit.date.toString("yyyy-MM-dd hh:mm");
         }
@@ -186,10 +185,10 @@ QVariant CommitGraphModel::data(const QModelIndex &index, int role) const
     else if (role == GraphNodeRole && index.column() == ColGraph) {
         return QVariant::fromValue(gc.graph);
     }
-    else if (role == Qt::UserRole + 1 && index.column() == ColMessage) {
+    else if (role == Qt::UserRole + 1 && index.column() == ColBranches) {
         return gc.commit.refs;
     }
-    else if (role == Qt::ToolTipRole && index.column() == ColMessage) {
+    else if (role == Qt::ToolTipRole && index.column() == ColBranches) {
         if (gc.commit.refs.isEmpty()) return QVariant();
         
         QStringList cleanedRefs;
@@ -216,6 +215,7 @@ QVariant CommitGraphModel::headerData(int section, Qt::Orientation orientation, 
         switch (section) {
             case ColGraph:   return QStringLiteral("Graph");
             case ColHash:    return QStringLiteral("Hash");
+            case ColBranches:return QStringLiteral("Branches");
             case ColMessage: return QStringLiteral("Message");
             case ColAuthor:  return QStringLiteral("Author");
             case ColDate:    return QStringLiteral("Date");

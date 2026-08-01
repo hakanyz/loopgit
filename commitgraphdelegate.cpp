@@ -22,64 +22,69 @@ QSize CommitGraphDelegate::sizeHint(const QStyleOptionViewItem &option, const QM
 
 void CommitGraphDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
 {
-    if (index.column() == CommitGraphModel::ColMessage) {
+    if (index.column() == CommitGraphModel::ColBranches || index.column() == CommitGraphModel::ColMessage) {
         if (option.state & QStyle::State_Selected) {
             painter->fillRect(option.rect, QColor("#062f4a")); // Exact match to stylesheet
         }
-
-        QStringList refs = index.data(Qt::UserRole + 1).toStringList();
-        QString msg = index.data(Qt::DisplayRole).toString();
-
+        
         painter->save();
         painter->setRenderHint(QPainter::Antialiasing);
 
-        QRect rect = option.rect;
-        QFontMetrics fm(painter->font());
-        
-        bool hasLocal = false;
-        bool hasRemote = false;
-        bool hasTag = false;
-        
-        for (const QString &ref : refs) {
-            if (ref == "HEAD" || ref.startsWith("HEAD ->")) continue; // Skip HEAD entirely
-            if (ref.startsWith("origin/")) hasRemote = true;
-            else if (ref.startsWith("tag: ")) hasTag = true;
-            else hasLocal = true;
+        if (index.column() == CommitGraphModel::ColBranches) {
+            QStringList refs = index.data(Qt::UserRole + 1).toStringList();
+            
+            bool hasLocal = false;
+            bool hasRemote = false;
+            bool hasTag = false;
+            
+            for (const QString &ref : refs) {
+                if (ref == "HEAD" || ref.startsWith("HEAD ->")) continue;
+                if (ref.startsWith("origin/")) hasRemote = true;
+                else if (ref.startsWith("tag: ")) hasTag = true;
+                else hasLocal = true;
+            }
+            
+            QRect rect = option.rect;
+            int currentX = rect.left() + 4;
+            int boxSize = 14;
+            int y = rect.top() + (rect.height() - boxSize) / 2;
+            
+            if (!hasLocal && !hasRemote && !hasTag) {
+                painter->setPen(QPen(QColor("#666666"), 1));
+                painter->drawLine(currentX + 2, rect.center().y(), currentX + 8, rect.center().y());
+            } else {
+                painter->setFont(QFont(painter->font().family(), 7, QFont::Bold)); // Small bold font for letters
+                
+                auto drawBox = [&](QColor color, const QString& letter) {
+                    QRect boxRect(currentX, y, boxSize, boxSize);
+                    painter->setPen(Qt::NoPen);
+                    painter->setBrush(color);
+                    painter->drawRoundedRect(boxRect, 2, 2);
+                    
+                    painter->setPen(Qt::white);
+                    painter->drawText(boxRect, Qt::AlignCenter, letter);
+                    
+                    currentX += boxSize + 4;
+                };
+                
+                if (hasLocal)  drawBox(QColor("#0E639C"), "L");
+                if (hasRemote) drawBox(QColor("#DA3633"), "R");
+                if (hasTag)    drawBox(QColor("#E2C08D"), "T");
+            }
+        } 
+        else if (index.column() == CommitGraphModel::ColMessage) {
+            QString msg = index.data(Qt::DisplayRole).toString();
+            QRect textRect = option.rect;
+            textRect.setLeft(textRect.left() + 4);
+            
+            painter->setPen(option.palette.color(QPalette::Text));
+            
+            // Elide text if it's too long
+            QFontMetrics fm(painter->font());
+            QString elidedText = fm.elidedText(msg, Qt::ElideRight, textRect.width() - 8);
+            
+            painter->drawText(textRect, Qt::AlignVCenter | Qt::AlignLeft, elidedText);
         }
-        
-        // Draw Letter Badges (Left Aligned)
-        int currentX = rect.left() + 4;
-        int boxSize = 14;
-        int y = rect.top() + (rect.height() - boxSize) / 2;
-        
-        painter->setFont(QFont(painter->font().family(), 7, QFont::Bold)); // Small bold font for letters
-        
-        auto drawBox = [&](QColor color, const QString& letter) {
-            QRect boxRect(currentX, y, boxSize, boxSize);
-            painter->setPen(Qt::NoPen);
-            painter->setBrush(color);
-            painter->drawRoundedRect(boxRect, 2, 2);
-            
-            painter->setPen(Qt::white);
-            painter->drawText(boxRect, Qt::AlignCenter, letter);
-            
-            currentX += boxSize + 4;
-        };
-        
-        if (hasLocal)  drawBox(QColor("#0E639C"), "L");
-        if (hasRemote) drawBox(QColor("#DA3633"), "R");
-        if (hasTag)    drawBox(QColor("#E2C08D"), "T");
-        
-        // Reset font for message text
-        painter->setFont(option.font);
-        
-        // Draw Message Text right after boxes
-        QRect textRect = rect;
-        textRect.setLeft(currentX + 4); // Added a bit more padding between dots and text
-        
-        painter->setPen(option.state & QStyle::State_Selected ? option.palette.highlightedText().color() : option.palette.text().color());
-        QString elidedMsg = fm.elidedText(msg, Qt::ElideRight, textRect.width() - 4);
-        painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter, elidedMsg);
 
         painter->restore();
         return;
