@@ -65,6 +65,7 @@ void CommitGraphModel::computeGraph()
 
         gc.graph.lane = lane;
         gc.graph.color = colorForLane(lane);
+        gc.graph.isMerge = (gc.commit.parentIds.size() > 1);
 
         // Record which lanes were incoming to this cell
         QSet<int> incomingLanes;

@@ -17,6 +17,7 @@ struct GraphEdge {
 struct GraphNode {
     int lane;
     QColor color;
+    bool isMerge = false;
     QVector<GraphEdge> edgesOut; // edges going down (to parents)
     QVector<GraphEdge> edgesIn;  // edges coming from above (from children)
 };

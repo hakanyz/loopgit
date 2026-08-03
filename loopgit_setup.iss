@@ -1,11 +1,11 @@
 [Setup]
 AppName=LoopGit
-AppVersion=1.1.20
+AppVersion=1.1.21
 AppPublisher=Hakan
 AppPublisherURL=https://github.com/hakanyz/loopgit
 DefaultDirName={autopf}\LoopGit
 DisableProgramGroupPage=yes
-OutputBaseFilename=LoopGit_1.1.20_Setup
+OutputBaseFilename=LoopGit_1.1.21_Setup
 SetupIconFile=resources\loopgit_radius_icon.ico
 UninstallDisplayIcon={app}\LoopGit.exe
 Compression=lzma

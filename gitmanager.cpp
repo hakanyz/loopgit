@@ -296,13 +296,9 @@ QVector<CommitInfo> GitManager::getLog(int maxCount)
         return result;
     }
 
-    git_revwalk_sorting(walker, GIT_SORT_TIME);
+    git_revwalk_sorting(walker, GIT_SORT_TOPOLOGICAL | GIT_SORT_TIME);
 
-    if (git_revwalk_push_head(walker) < 0) {
-        // Probably no commits yet
-        git_revwalk_free(walker);
-        return result;
-    }
+    git_revwalk_push_head(walker);
 
     git_oid oid;
     int count = 0;
@@ -314,13 +310,20 @@ QVector<CommitInfo> GitManager::getLog(int maxCount)
     
     for (const auto &b : branches) {
         if (!b.targetHash.isEmpty()) {
-            // No filtering here, let the UI handle how to display them compactly
             commitToRefs[b.targetHash].append(b.name);
+            git_oid id;
+            if (git_oid_fromstr(&id, b.targetHash.toUtf8().constData()) == 0) {
+                git_revwalk_push(walker, &id);
+            }
         }
     }
     for (const auto &t : tags) {
         if (!t.targetHash.isEmpty()) {
-            commitToRefs[t.targetHash].append(t.name);
+            commitToRefs[t.targetHash].append("tag: " + t.name);
+            git_oid id;
+            if (git_oid_fromstr(&id, t.targetHash.toUtf8().constData()) == 0) {
+                git_revwalk_push(walker, &id);
+            }
         }
     }
 

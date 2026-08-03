@@ -30,62 +30,59 @@ void CommitGraphDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
         painter->save();
         painter->setRenderHint(QPainter::Antialiasing);
 
-        if (index.column() == CommitGraphModel::ColBranches) {
+        if (index.column() == CommitGraphModel::ColMessage) {
+            QString msg = index.data(Qt::DisplayRole).toString();
             QStringList refs = index.data(Qt::UserRole + 1).toStringList();
             
-            bool hasLocal = false;
-            bool hasRemote = false;
-            bool hasTag = false;
+            QRect rect = option.rect;
+            int currentX = rect.left() + 4;
+            int y = rect.top() + (rect.height() - 20) / 2; // 20 is badge height
+            
+            painter->setFont(QFont(painter->font().family(), 8, QFont::Bold)); // Slightly larger font for branch names
             
             for (const QString &ref : refs) {
                 if (ref == "HEAD" || ref.startsWith("HEAD ->")) continue;
-                if (ref.startsWith("origin/")) hasRemote = true;
-                else if (ref.startsWith("tag: ")) hasTag = true;
-                else hasLocal = true;
-            }
-            
-            QRect rect = option.rect;
-            int boxSize = 14;
-            int y = rect.top() + (rect.height() - boxSize) / 2;
-            
-            if (!hasLocal && !hasRemote && !hasTag) {
-                int dashX = rect.left() + (rect.width() - 6) / 2;
-                painter->setPen(QPen(QColor("#666666"), 1));
-                painter->drawLine(dashX, rect.center().y(), dashX + 6, rect.center().y());
-            } else {
-                int totalBoxes = (hasLocal ? 1 : 0) + (hasRemote ? 1 : 0) + (hasTag ? 1 : 0);
-                int totalWidth = (totalBoxes * boxSize) + ((totalBoxes - 1) * 4);
-                int currentX = rect.left() + (rect.width() - totalWidth) / 2;
                 
-                painter->setFont(QFont(painter->font().family(), 7, QFont::Bold)); // Small bold font for letters
+                QColor bgColor;
+                if (ref.startsWith("origin/")) {
+                    bgColor = QColor("#DA3633"); // Remote (Red)
+                } else if (ref.startsWith("tag: ")) {
+                    bgColor = QColor("#E2C08D"); // Tag (Yellow)
+                } else {
+                    bgColor = QColor("#0E639C"); // Local (Blue)
+                }
                 
-                auto drawBox = [&](QColor color, const QString& letter) {
-                    QRect boxRect(currentX, y, boxSize, boxSize);
+                QString text = ref;
+                if (text.startsWith("tag: ")) text = text.mid(5); // Remove "tag: " prefix for display
+                
+                QFontMetrics fm(painter->font());
+                int textWidth = fm.horizontalAdvance(text);
+                int badgeWidth = textWidth + 12; // 6px padding on each side
+                
+                QRect badgeRect(currentX, y, badgeWidth, 20);
+                
+                // Draw badge if it fits (at least partially)
+                if (currentX + badgeWidth < rect.right() - 20) {
                     painter->setPen(Qt::NoPen);
-                    painter->setBrush(color);
-                    painter->drawRoundedRect(boxRect, 2, 2);
+                    painter->setBrush(bgColor);
+                    painter->drawRoundedRect(badgeRect, 4, 4);
                     
                     painter->setPen(Qt::white);
-                    painter->drawText(boxRect, Qt::AlignCenter, letter);
+                    painter->drawText(badgeRect, Qt::AlignCenter, text);
                     
-                    currentX += boxSize + 4;
-                };
-                
-                if (hasLocal)  drawBox(QColor("#0E639C"), "L");
-                if (hasRemote) drawBox(QColor("#DA3633"), "R");
-                if (hasTag)    drawBox(QColor("#E2C08D"), "T");
+                    currentX += badgeWidth + 4;
+                }
             }
-        } 
-        else if (index.column() == CommitGraphModel::ColMessage) {
-            QString msg = index.data(Qt::DisplayRole).toString();
-            QRect textRect = option.rect;
-            textRect.setLeft(textRect.left() + 4);
             
+            QRect textRect = option.rect;
+            textRect.setLeft(currentX + 4);
+            
+            painter->setFont(option.font); // Restore normal font for message
             painter->setPen(option.palette.color(QPalette::Text));
             
             // Elide text if it's too long
-            QFontMetrics fm(painter->font());
-            QString elidedText = fm.elidedText(msg, Qt::ElideRight, textRect.width() - 8);
+            QFontMetrics fmMsg(painter->font());
+            QString elidedText = fmMsg.elidedText(msg, Qt::ElideRight, textRect.width() - 8);
             
             painter->drawText(textRect, Qt::AlignVCenter | Qt::AlignLeft, elidedText);
         }
@@ -178,7 +175,7 @@ void CommitGraphDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
         painter->drawPath(path);
     }
 
-    bool isMerge = (node.edgesOut.size() > 1);
+    bool isMerge = node.isMerge;
     
     QModelIndex msgIndex = index.siblingAtColumn(CommitGraphModel::ColMessage);
     QStringList refs = msgIndex.data(Qt::UserRole + 1).toStringList();
