@@ -72,6 +72,7 @@ void MainWindow::setupUi()
     
     QTabBar *tabBar = m_tabWidget->findChild<QTabBar *>();
     if (tabBar) {
+        tabBar->setObjectName("mainTabBar");
         tabBar->setTabButton(plusIndex, QTabBar::RightSide, nullptr);
         tabBar->setTabButton(plusIndex, QTabBar::LeftSide, nullptr);
     }
@@ -553,7 +554,7 @@ void MainWindow::applyDarkTheme()
         QTabBar::tab:hover {
             background-color: #3C3C3C;
         }
-        QTabBar::tab:last {
+        QTabBar#mainTabBar::tab:last {
             min-width: 32px;
             max-width: 32px;
             padding: 4px 0px 0px 0px;
@@ -564,7 +565,7 @@ void MainWindow::applyDarkTheme()
             font-size: 22px;
             font-weight: bold;
         }
-        QTabBar::tab:last:hover {
+        QTabBar#mainTabBar::tab:last:hover {
             color: white;
             background-color: #3C3C3C;
             border-radius: 4px;
@@ -901,7 +902,7 @@ void MainWindow::showAboutDialog()
         "<h2 style='margin-bottom:2px;'>LoopGit</h2>"
         "<p style='color:#888; margin-top:0;'>Version " + qApp->applicationVersion() + "</p>"
         "<p>A fast, modern Git GUI client built with <b>C++ / Qt6</b> and <b>libgit2</b>.</p>"
-        "<p>Built with â¤ï¸ for developers who love speed and simplicity.</p>"
+        "<p>Built with &#10084;&#65039; for developers who love speed and simplicity.</p>"
         "<hr>"
         "<p><b>Author:</b> Hakan</p>"
         "<p><a href='https://github.com/hakanyz/loopgit'>github.com/hakanyz/loopgit</a></p>"

@@ -813,6 +813,11 @@ int GitManager::credentialCb(void *out, const char *url,
             QLineEdit::Password, QString(), &ok);
         if (!ok) return GIT_EUSER;
 
+        if (manager) {
+            manager->m_username = username;
+            manager->m_token = password;
+        }
+
         return git_credential_userpass_plaintext_new(
             cred, username.toUtf8().constData(), password.toUtf8().constData());
     }
@@ -1698,6 +1703,37 @@ bool GitManager::revertCommit(const QString &commitId)
         setError("Revert failed (check for conflicts)");
         return false;
     }
+    return true;
+}
+
+bool GitManager::resetToCommit(const QString &commitId, int resetType)
+{
+    QMutexLocker locker(&m_repoMutex);
+    if (!ensureOpen() || commitId.isEmpty()) return false;
+
+    git_oid oid;
+    if (git_oid_fromstr(&oid, commitId.toUtf8().constData()) < 0) {
+        setError("Invalid commit ID for reset");
+        return false;
+    }
+
+    git_object *targetObj = nullptr;
+    if (git_object_lookup(&targetObj, m_repo, &oid, GIT_OBJECT_COMMIT) < 0) {
+        setError("Commit not found");
+        return false;
+    }
+
+    git_checkout_options checkoutOpts = GIT_CHECKOUT_OPTIONS_INIT;
+    checkoutOpts.checkout_strategy = GIT_CHECKOUT_FORCE; // Force checkout for hard reset, ignored by soft/mixed
+
+    int err = git_reset(m_repo, targetObj, static_cast<git_reset_t>(resetType), &checkoutOpts);
+    git_object_free(targetObj);
+
+    if (err < 0) {
+        setError(QStringLiteral("Reset failed: %1").arg(lastError()));
+        return false;
+    }
+    
     return true;
 }
 

@@ -1380,9 +1380,19 @@ void RepoWidget::showHistoryContextMenu(const QPoint &pos)
     QAction *actCopyHash = nullptr;
     QAction *actCopyMessage = nullptr;
 
+    QAction *actResetSoft = nullptr;
+    QAction *actResetMixed = nullptr;
+    QAction *actResetHard = nullptr;
+
     if (selection.size() == 1) {
         menu.addSeparator();
         actBranch = menu.addAction(QStringLiteral("Create Branch Here..."));
+        menu.addSeparator();
+        QMenu *resetMenu = menu.addMenu(QStringLiteral("Reset current branch to this commit"));
+        actResetSoft = resetMenu->addAction(QStringLiteral("Soft (Keep changes and index)"));
+        actResetMixed = resetMenu->addAction(QStringLiteral("Mixed (Keep changes, reset index)"));
+        actResetHard = resetMenu->addAction(QStringLiteral("Hard (Discard all changes)"));
+        
         menu.addSeparator();
         actCherryPick = menu.addAction(QStringLiteral("Cherry-pick this commit"));
         actRevert = menu.addAction(QStringLiteral("Revert this commit"));
@@ -1504,6 +1514,29 @@ void RepoWidget::showHistoryContextMenu(const QPoint &pos)
         if (QMessageBox::question(this, "Revert", QStringLiteral("Revert commit %1?").arg(shortId)) == QMessageBox::Yes) {
             if (m_git->revertCommit(commitId)) refreshAll();
             else QMessageBox::critical(this, "Error", m_git->lastError());
+        }
+    } else if (res == actResetSoft || res == actResetMixed || res == actResetHard) {
+        int row = selection[0].row();
+        QString commitId = m_logModel->data(m_logModel->index(row, CommitGraphModel::ColHash), Qt::UserRole).toString();
+        QString shortId = m_logModel->data(m_logModel->index(row, CommitGraphModel::ColHash), Qt::DisplayRole).toString();
+        
+        int resetType = 1; // GIT_RESET_SOFT = 1
+        QString typeName = "Soft";
+        if (res == actResetMixed) { resetType = 2; typeName = "Mixed"; } // GIT_RESET_MIXED = 2
+        else if (res == actResetHard) { resetType = 3; typeName = "Hard"; } // GIT_RESET_HARD = 3
+        
+        QString warningMsg = QStringLiteral("Are you sure you want to %1 reset to commit %2?").arg(typeName, shortId);
+        if (res == actResetHard) {
+            warningMsg += QStringLiteral("\n\nWARNING: All uncommitted changes will be lost permanently!");
+        }
+        
+        QMessageBox::StandardButton reply = QMessageBox::question(this, "Reset Branch", warningMsg, QMessageBox::Yes | QMessageBox::No);
+        if (reply == QMessageBox::Yes) {
+            if (m_git->resetToCommit(commitId, resetType)) {
+                refreshAll();
+            } else {
+                QMessageBox::critical(this, "Error", m_git->lastError());
+            }
         }
     } else if (res == actCopyHash) {
         int row = selection[0].row();

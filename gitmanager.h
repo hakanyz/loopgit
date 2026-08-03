@@ -136,6 +136,7 @@ public:
     bool squashCommits(const QString &baseCommitId, const QString &newMessage);
     bool cherryPick(const QString &commitId);
     bool revertCommit(const QString &commitId);
+    bool resetToCommit(const QString &commitId, int resetType);
 
     /* ── Push / Pull / Fetch ─────────────── */
     bool push(const QString &remoteName = QStringLiteral("origin"), bool force = false);
