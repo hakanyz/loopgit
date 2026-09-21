@@ -711,6 +711,13 @@ void MainWindow::openRepositoryPath(const QString &path)
     settings.setValue("app/recent_repos", recentRepos);
 
     RepoWidget *rw = new RepoWidget(path, this);
+    QSettings settingsCompany("MyCompany", "LoopGit");
+    QString user = settingsCompany.value("github/username", "").toString();
+    QString token = settingsCompany.value("github/token", "").toString();
+    if (!user.isEmpty() && !token.isEmpty()) {
+        rw->gitManager()->setCredentials(user, token);
+    }
+
     connect(rw, &RepoWidget::statusMessage, this, [this](const QString &msg) {
         statusBar()->showMessage(msg, 5000);
     });
@@ -719,6 +726,20 @@ void MainWindow::openRepositoryPath(const QString &path)
         Q_UNUSED(branches);
         if (currentRepoWidget() == sender()) {
             m_syncStatusLabel->setText(QString("Branch: %1").arg(currentBranch));
+        }
+    });
+    connect(rw, &RepoWidget::syncStatusChanged, this, [this](const QString &branch, int ahead, int behind) {
+        if (currentRepoWidget() == sender()) {
+            QString syncText;
+            if (ahead > 0 || behind > 0) {
+                QStringList parts;
+                if (ahead > 0) parts << QString("↑%1").arg(ahead);
+                if (behind > 0) parts << QString("↓%1").arg(behind);
+                syncText = QString(" [%1]").arg(parts.join(" "));
+            } else {
+                syncText = QStringLiteral(" (In sync)");
+            }
+            m_syncStatusLabel->setText(QString("Branch: %1%2").arg(branch, syncText));
         }
     });
 
@@ -821,11 +842,6 @@ void MainWindow::cloneRepository()
         QSettings settings("MyCompany", "LoopGit");
         QString user = settings.value("github/username", "").toString();
         QString token = settings.value("github/token", "").toString();
-        
-        if (user.isEmpty() || token.isEmpty()) {
-            QMessageBox::warning(this, "Credentials Required", "Please configure your GitHub credentials first.\nGo to File -> Credentials...");
-            return;
-        }
 
         QProgressDialog *progress = new QProgressDialog("Cloning repository, please wait...", nullptr, 0, 0, this);
         progress->setWindowTitle("Cloning");
@@ -834,7 +850,9 @@ void MainWindow::cloneRepository()
         progress->show();
 
         GitManager *tempGit = new GitManager(this);
-        tempGit->setCredentials(user, token);
+        if (!user.isEmpty() && !token.isEmpty()) {
+            tempGit->setCredentials(user, token);
+        }
 
         QFutureWatcher<bool> *watcher = new QFutureWatcher<bool>(this);
         connect(watcher, &QFutureWatcher<bool>::finished, this, [this, watcher, tempGit, dest, progress]() {

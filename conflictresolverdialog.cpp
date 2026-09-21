@@ -50,6 +50,8 @@ void ConflictResolverDialog::parseFile()
             inConflict = true;
             conflictPhase = 1;
             currentBlock.isConflict = true;
+        } else if (line.startsWith("|||||||") && inConflict) {
+            conflictPhase = 3; // base block in diff3 style, skip until =======
         } else if (line.startsWith("=======") && inConflict) {
             conflictPhase = 2;
         } else if (line.startsWith(">>>>>>>") && inConflict) {
@@ -61,15 +63,11 @@ void ConflictResolverDialog::parseFile()
             if (conflictPhase == 0) {
                 currentBlock.normalText += line;
             } else if (conflictPhase == 1) {
-                // If it's a base block (|||||||), we just ignore it for now or append to ours.
-                if (line.startsWith("|||||||")) {
-                    // skip base for simplicity
-                } else {
-                    currentBlock.oursText += line;
-                }
+                currentBlock.oursText += line;
             } else if (conflictPhase == 2) {
                 currentBlock.theirsText += line;
             }
+            // conflictPhase == 3 is diff3 base block, discard
         }
     }
     

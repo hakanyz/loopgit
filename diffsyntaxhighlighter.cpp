@@ -30,13 +30,14 @@ DiffSyntaxHighlighter::DiffSyntaxHighlighter(QTextDocument *parent)
         highlightingRules.append(rule);
     }
 
-    // Qt Classes / generic Classes (starting with uppercase)
+    // Qt Classes / generic Classes (starting with Q)
     classFormat.setForeground(QColor("#4ec9b0")); // Teal classes
-    rule.pattern = QRegularExpression("\\bQ[A-Za-z]+\\b");
+    rule.pattern = QRegularExpression("\\bQ[A-Za-z0-9_]+\\b");
     rule.format = classFormat;
     highlightingRules.append(rule);
-    
-    rule.pattern = QRegularExpression("\\b[A-Z][a-zA-Z0-9_]+\\b");
+
+    // Common standard library types
+    rule.pattern = QRegularExpression("\\b(std::[a-zA-Z0-9_]+|string|vector|map|set|list|unique_ptr|shared_ptr)\\b");
     rule.format = classFormat;
     highlightingRules.append(rule);
 
@@ -84,7 +85,7 @@ void DiffSyntaxHighlighter::highlightBlock(const QString &text)
     }
 
     // Apply all syntax highlighting rules
-    for (const HighlightingRule &rule : qAsConst(highlightingRules)) {
+    for (const HighlightingRule &rule : highlightingRules) {
         QRegularExpressionMatchIterator matchIterator = rule.pattern.globalMatch(text);
         while (matchIterator.hasNext()) {
             QRegularExpressionMatch match = matchIterator.next();

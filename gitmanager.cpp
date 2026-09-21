@@ -5,6 +5,9 @@
 #include <QFileInfo>
 #include <QInputDialog>
 #include <QLineEdit>
+#include <QThread>
+#include <QSettings>
+#include <QCoreApplication>
 
 // -------------------------------------------------------------------
 //  Helper: convert git_delta_t ? FileStatusEntry::Status
@@ -605,6 +608,7 @@ bool GitManager::commit(const QString &message, bool amend)
     int headErr = git_repository_head(&headRef, m_repo);
 
     QByteArray msgBytes = message.toUtf8();
+    bool wasMerge = (git_repository_state(m_repo) == GIT_REPOSITORY_STATE_MERGE);
 
     if (headErr == GIT_EUNBORNBRANCH || headErr == GIT_ENOTFOUND) {
         // Initial commit — no parent
@@ -617,8 +621,8 @@ bool GitManager::commit(const QString &message, bool amend)
         git_reference_peel((git_object **)&parent, headRef, GIT_OBJECT_COMMIT);
 
         if (amend) {
-            // Amend: replace HEAD commit, use HEAD's parent(s)
-            int parentCount = git_commit_parentcount(parent);
+            // Amend: replace HEAD commit, preserve all existing parent(s)
+            int parentCount = parent ? git_commit_parentcount(parent) : 0;
             if (parentCount == 0) {
                 // Amending initial commit
                 err = git_commit_create_v(&commitOid, m_repo, "HEAD",
@@ -626,23 +630,58 @@ bool GitManager::commit(const QString &message, bool amend)
                                           msgBytes.constData(),
                                           tree, 0);
             } else {
-                git_commit *grandparent = nullptr;
-                git_commit_parent(&grandparent, parent, 0);
-                err = git_commit_create_v(&commitOid, m_repo, "HEAD",
-                                          sig, sig, "UTF-8",
-                                          msgBytes.constData(),
-                                          tree, 1, grandparent);
-                git_commit_free(grandparent);
+                QVector<const git_commit*> parentList;
+                parentList.reserve(parentCount);
+                for (int i = 0; i < parentCount; ++i) {
+                    git_commit *gp = nullptr;
+                    if (git_commit_parent(&gp, parent, i) == 0) {
+                        parentList.append(gp);
+                    }
+                }
+                err = git_commit_create(&commitOid, m_repo, "HEAD",
+                                        sig, sig, "UTF-8",
+                                        msgBytes.constData(),
+                                        tree, parentList.size(), parentList.data());
+                for (const git_commit *gp : parentList) {
+                    git_commit_free(const_cast<git_commit*>(gp));
+                }
             }
         } else {
-            err = git_commit_create_v(&commitOid, m_repo, "HEAD",
-                                      sig, sig, "UTF-8",
-                                      msgBytes.constData(),
-                                      tree, 1, parent);
+            QVector<const git_commit*> parentList;
+            if (parent) {
+                parentList.append(parent);
+            }
+
+            // If we are committing a merge, add all MERGE_HEAD parents
+            if (wasMerge) {
+                QVector<git_oid> mergeOids;
+                git_repository_mergehead_foreach(m_repo, [](const git_oid *oid, void *payload) -> int {
+                    auto *list = static_cast<QVector<git_oid>*>(payload);
+                    list->append(*oid);
+                    return 0;
+                }, &mergeOids);
+
+                for (const auto &moid : mergeOids) {
+                    git_commit *mc = nullptr;
+                    if (git_commit_lookup(&mc, m_repo, &moid) == 0) {
+                        parentList.append(mc);
+                    }
+                }
+            }
+
+            err = git_commit_create(&commitOid, m_repo, "HEAD",
+                                    sig, sig, "UTF-8",
+                                    msgBytes.constData(),
+                                    tree, parentList.size(), parentList.data());
+
+            // Free extra merge parents (parent #0 freed below)
+            for (int i = 1; i < parentList.size(); ++i) {
+                git_commit_free(const_cast<git_commit*>(parentList[i]));
+            }
         }
 
-        git_commit_free(parent);
-        git_reference_free(headRef);
+        if (parent) git_commit_free(parent);
+        if (headRef) git_reference_free(headRef);
     }
 
     git_signature_free(sig);
@@ -652,6 +691,14 @@ bool GitManager::commit(const QString &message, bool amend)
         setError(QStringLiteral("Failed to create commit"));
         return false;
     }
+
+    // Clean up repository state (e.g. remove MERGE_HEAD) after successful commit
+    if (wasMerge ||
+        git_repository_state(m_repo) == GIT_REPOSITORY_STATE_CHERRYPICK ||
+        git_repository_state(m_repo) == GIT_REPOSITORY_STATE_REVERT) {
+        git_repository_state_cleanup(m_repo);
+    }
+
     return true;
 }
 
@@ -660,25 +707,39 @@ bool GitManager::discardFileChanges(const QString &path)
     QMutexLocker locker(&m_repoMutex);
     if (!ensureOpen() || path.isEmpty()) return false;
 
-    // First try git_checkout_index to restore the file
+    QByteArray pathBytes = path.toUtf8();
+
+    // Check git status of the file
+    unsigned int statusFlags = 0;
+    int statusErr = git_status_file(&statusFlags, m_repo, pathBytes.constData());
+
+    // If genuinely untracked, remove from disk
+    if (statusErr == 0 && (statusFlags & GIT_STATUS_WT_NEW)) {
+        QString fullPath = QDir(repoPath()).absoluteFilePath(path);
+        QFileInfo fi(fullPath);
+        if (fi.isDir()) {
+            if (QDir(fullPath).removeRecursively()) return true;
+        } else if (fi.exists()) {
+            if (QFile::remove(fullPath)) return true;
+        }
+        setError(QStringLiteral("Failed to remove untracked file '%1'").arg(path));
+        return false;
+    }
+
+    // Tracked file: safely checkout from index or HEAD
     git_checkout_options opts = GIT_CHECKOUT_OPTIONS_INIT;
     opts.checkout_strategy = GIT_CHECKOUT_FORCE;
-    
-    QByteArray pathBytes = path.toUtf8();
-    char *paths[1];
-    paths[0] = pathBytes.data();
+    char *paths[1] = { pathBytes.data() };
     opts.paths.strings = paths;
     opts.paths.count = 1;
 
     int err = git_checkout_index(m_repo, nullptr, &opts);
     if (err < 0) {
-        // If it's untracked, git_checkout_index might fail or do nothing, 
-        // we can just delete the file from disk.
-        QFile file(QDir(repoPath()).absoluteFilePath(path));
-        if (file.exists() && file.remove()) {
-            return true;
-        }
-        setError(QStringLiteral("Failed to discard changes for '%1'").arg(path));
+        err = git_checkout_head(m_repo, &opts);
+    }
+
+    if (err < 0) {
+        setError(QStringLiteral("Failed to discard changes for tracked file '%1'").arg(path));
         return false;
     }
     return true;
@@ -801,20 +862,52 @@ int GitManager::credentialCb(void *out, const char *url,
                 cred, user.toUtf8().constData(), manager->m_token.toUtf8().constData());
         }
 
-        bool ok = false;
-        QString defUser = usernameFromUrl
-                              ? QString::fromUtf8(usernameFromUrl) : QString();
-        QString username = QInputDialog::getText(
-            nullptr, QStringLiteral("Authentication Required"),
-            QStringLiteral("Username for %1:").arg(QString::fromUtf8(url)),
-            QLineEdit::Normal, defUser, &ok);
-        if (!ok) return GIT_EUSER;
+        // Try saved credentials from QSettings
+        QSettings settings("MyCompany", "LoopGit");
+        QString savedUser = settings.value("github/username", "").toString();
+        QString savedToken = settings.value("github/token", "").toString();
+        if (!savedToken.isEmpty()) {
+            if (savedUser.isEmpty() && usernameFromUrl) {
+                savedUser = QString::fromUtf8(usernameFromUrl);
+            }
+            if (manager) {
+                manager->m_username = savedUser;
+                manager->m_token = savedToken;
+            }
+            return git_credential_userpass_plaintext_new(
+                cred, savedUser.toUtf8().constData(), savedToken.toUtf8().constData());
+        }
 
-        QString password = QInputDialog::getText(
-            nullptr, QStringLiteral("Authentication Required"),
-            QStringLiteral("Password / Token:"),
-            QLineEdit::Password, QString(), &ok);
-        if (!ok) return GIT_EUSER;
+        // If credentials are not saved, ask the user interactively on the main thread
+        QString username;
+        QString password;
+        bool ok = false;
+        QString defUser = usernameFromUrl ? QString::fromUtf8(usernameFromUrl) : QString();
+        QString urlStr = QString::fromUtf8(url);
+
+        auto promptUser = [&]() {
+            username = QInputDialog::getText(
+                nullptr, QStringLiteral("Authentication Required"),
+                QStringLiteral("Username for %1:").arg(urlStr),
+                QLineEdit::Normal, defUser, &ok);
+            if (!ok) return;
+
+            password = QInputDialog::getText(
+                nullptr, QStringLiteral("Authentication Required"),
+                QStringLiteral("Password / Token:"),
+                QLineEdit::Password, QString(), &ok);
+        };
+
+        if (QThread::currentThread() == QCoreApplication::instance()->thread()) {
+            promptUser();
+        } else {
+            // Marshal safely to GUI main thread
+            QMetaObject::invokeMethod(QCoreApplication::instance(), promptUser, Qt::BlockingQueuedConnection);
+        }
+
+        if (!ok || password.isEmpty()) {
+            return GIT_EUSER;
+        }
 
         if (manager) {
             manager->m_username = username;

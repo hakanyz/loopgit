@@ -622,6 +622,8 @@ void RepoWidget::populateBranchesTree(const QVector<BranchInfo> &branches)
 
     QString currentBranch;
     QStringList branchNames;
+    int currentAhead = 0;
+    int currentBehind = 0;
 
     for (const auto &bi : branches) {
         QTreeWidgetItem *item = new QTreeWidgetItem;
@@ -629,6 +631,10 @@ void RepoWidget::populateBranchesTree(const QVector<BranchInfo> &branches)
         
         if (!bi.isRemote) {
             auto ab = m_git->getAheadBehind(bi.name);
+            if (bi.isHead) {
+                currentAhead = ab.first;
+                currentBehind = ab.second;
+            }
             if (ab.first > 0 || ab.second > 0) {
                 display += QString(" [");
                 if (ab.first > 0) display += QString("↑%1").arg(ab.first);
@@ -657,6 +663,9 @@ void RepoWidget::populateBranchesTree(const QVector<BranchInfo> &branches)
     }
     
     emit branchListChanged(branchNames, currentBranch);
+    if (!currentBranch.isEmpty()) {
+        emit syncStatusChanged(currentBranch, currentAhead, currentBehind);
+    }
 }
 
     // Show diff for item is now handled directly via onCommitFileClicked

@@ -87,6 +87,7 @@ private slots:
 signals:
     void errorOccurred(const QString &message);
     void branchListChanged(const QStringList &branches, const QString &currentBranch);
+    void syncStatusChanged(const QString &branch, int ahead, int behind);
     void statusMessage(const QString &msg);
 
 private:
