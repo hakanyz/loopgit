@@ -13,7 +13,7 @@ if(DEFINED CMAKE_C_COMPILER AND CMAKE_C_COMPILER MATCHES "mingw")
     endif()
 endif()
 
-project(LoopGit VERSION 1.1.21 LANGUAGES C CXX)
+project(LoopGit VERSION 1.1.22 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -59,33 +59,37 @@ endif()
 
 # ── Sources ───────────────────────────────────────────────────────
 set(PROJECT_SOURCES
-    main.cpp
-    mainwindow.h
-    mainwindow.cpp
-    repowidget.h
-    repowidget.cpp
-    gitmanager.h
-    gitmanager.cpp
-    diffviewwidget.h
-    diffviewwidget.cpp
-    branchdialog.h
-    branchdialog.cpp
-    commitgraphmodel.h
-    commitgraphmodel.cpp
-    commitgraphdelegate.h
-    commitgraphdelegate.cpp
-    blamedialog.h
-    blamedialog.cpp
-    conflictresolverdialog.cpp
-    settingsdialog.cpp
-    reflogdialog.cpp
-    comparedialog.cpp
-    appsettingsdialog.h
-    appsettingsdialog.cpp
-    diffsyntaxhighlighter.h
-    diffsyntaxhighlighter.cpp
-    resources.qrc
-    app.rc
+    src/main.cpp
+    src/mainwindow.h
+    src/mainwindow.cpp
+    src/repowidget.h
+    src/repowidget.cpp
+    src/gitmanager.h
+    src/gitmanager.cpp
+    src/diffviewwidget.h
+    src/diffviewwidget.cpp
+    src/branchdialog.h
+    src/branchdialog.cpp
+    src/commitgraphmodel.h
+    src/commitgraphmodel.cpp
+    src/commitgraphdelegate.h
+    src/commitgraphdelegate.cpp
+    src/blamedialog.h
+    src/blamedialog.cpp
+    src/comparedialog.h
+    src/comparedialog.cpp
+    src/conflictresolverdialog.h
+    src/conflictresolverdialog.cpp
+    src/diffsyntaxhighlighter.h
+    src/diffsyntaxhighlighter.cpp
+    src/reflogdialog.h
+    src/reflogdialog.cpp
+    src/settingsdialog.h
+    src/settingsdialog.cpp
+    src/appsettingsdialog.h
+    src/appsettingsdialog.cpp
+    resources/resources.qrc
+    resources/app.rc
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
@@ -100,6 +104,8 @@ else()
         add_executable(LoopGit ${PROJECT_SOURCES})
     endif()
 endif()
+
+target_include_directories(LoopGit PRIVATE src)
 
 target_link_libraries(LoopGit PRIVATE
     Qt${QT_VERSION_MAJOR}::Widgets

@@ -73,13 +73,58 @@ jobs:
           wget -q https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
           chmod +x linuxdeploy-x86_64.AppImage linuxdeploy-plugin-qt-x86_64.AppImage
           
-          # 3. Create AppImage using modern linuxdeploy
-          ./linuxdeploy-x86_64.AppImage --appdir AppDir --plugin qt --output appimage -d AppDir/usr/share/applications/loopgit.desktop -i AppDir/usr/share/icons/hicolor/256x256/apps/loopgit.png || echo "AppImage creation failed, but tar.gz is available"
+      - name: Build Standalone .deb Package
+        run: |
+          export VERSION=${GITHUB_REF_NAME#v}
+          DEB_DIR="deb_package"
+          
+          mkdir -p ${DEB_DIR}/DEBIAN
+          mkdir -p ${DEB_DIR}/opt/loopgit
+          mkdir -p ${DEB_DIR}/usr/bin
+          mkdir -p ${DEB_DIR}/usr/share/applications
+          mkdir -p ${DEB_DIR}/usr/share/icons/hicolor/256x256/apps
+
+          # Copy self-contained AppDir (with bundled Qt6 libraries and plugins)
+          cp -r AppDir/usr/* ${DEB_DIR}/opt/loopgit/
+
+          # Create system launcher wrapper
+          cat << 'EOF' > ${DEB_DIR}/usr/bin/loopgit
+          #!/bin/bash
+          export LD_LIBRARY_PATH=/opt/loopgit/lib:$LD_LIBRARY_PATH
+          export QT_PLUGIN_PATH=/opt/loopgit/plugins:$QT_PLUGIN_PATH
+          exec /opt/loopgit/bin/LoopGit "$@"
+          EOF
+          chmod +x ${DEB_DIR}/usr/bin/loopgit
+
+          # Copy desktop file and icon
+          cp AppDir/usr/share/applications/loopgit.desktop ${DEB_DIR}/usr/share/applications/
+          sed -i 's|Exec=LoopGit|Exec=/usr/bin/loopgit %F|g' ${DEB_DIR}/usr/share/applications/loopgit.desktop
+          cp resources/logo.png ${DEB_DIR}/usr/share/icons/hicolor/256x256/apps/loopgit.png
+
+          # Create Debian control file (self-contained, all Qt6 libraries bundled)
+          cat << EOF > ${DEB_DIR}/DEBIAN/control
+          Package: loopgit
+          Version: ${VERSION}
+          Section: devel
+          Priority: optional
+          Architecture: amd64
+          Maintainer: Hakan <hakanyz@outlook.com>
+          Depends: libc6 (>= 2.34), libstdc++6 (>= 11)
+          Description: Fast, lightweight, and native Git GUI client
+           LoopGit is a native desktop Git client built with C++, Qt6, and libgit2.
+           Self-contained standalone package for Debian 12+, Ubuntu 22.04+, and compatible distributions.
+          EOF
+
+          # Build standalone Debian package
+          dpkg-deb --build --root-owner-group ${DEB_DIR} "LoopGit-${VERSION}-Linux-x86_64.deb"
+          cp "LoopGit-${VERSION}-Linux-x86_64.deb" "LoopGit_${VERSION}_amd64.deb"
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v1
         with:
           files: |
+            LoopGit-*.deb
+            LoopGit_*.deb
             LoopGit-*.AppImage
             LoopGit-*.tar.gz
         env:

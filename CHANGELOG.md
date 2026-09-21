@@ -2,6 +2,16 @@
 
 All notable changes to the LoopGit project will be documented in this file.
 
+## [1.1.22] - 2026-09-21
+
+### Added
+- **Standalone Linux .deb Packaging**: self-contained standalone `.deb` package for Debian 12+ and Ubuntu 22.04+ with all Qt6 runtime dependencies bundled.
+- **Deterministic Lane Graph Rendering**: GitExtensions-style stable lane coloring where the primary trunk remains solid GitHub Blue and feature branches maintain clean dedicated lane colors.
+- **C1 Continuous Splines**: smooth cubic Bézier curves connecting fork and merge commits without abrupt angular joints.
+- **Stash Leaf Nodes**: stashes render cleanly as compact diamond markers without drawing persistent transit lines across unrelated history.
+- **Project Restructuring**: organized all C++ source files into `src/` and resources into `resources/`.
+- **Licensing**: updated open source license to GNU General Public License v3.0 (GPL-3.0).
+
 ## [1.0.0-beta] - 2026-07-19
 
 This is the first feature-complete Beta release of LoopGit, offering a native, lightweight, and modern Git client experience.

@@ -1,13 +1,26 @@
-# Qt Creator and CMake generated files
+# Qt Creator, CMake, and IDE generated files
 *.pro.user*
 *.qbs.user*
 CMakeLists.txt.user*
+*.user
+*.user.*
 .qtcreator/
+.agents/
+.vs/
+.vscode/
+.idea/
 
 # Build and packaging directories
+build*/
 /build*/
 build_test/
+cmake-build-*/
 Output/
+output/
+bin/
+dist/
+Release/
+Debug/
 test_repo/
 test_git/
 

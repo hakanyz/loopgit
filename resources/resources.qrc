@@ -1,0 +1,27 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource prefix="/resources">
+        <file>logo.png</file>
+        <file>icons/local_files.svg</file>
+        <file>icons/history.svg</file>
+        <file>icons/submodule.svg</file>
+        <file>icons/pull.svg</file>
+        <file>icons/push.svg</file>
+        <file>icons/fetch.svg</file>
+        <file>icons/terminal.svg</file>
+        <file>icons/stash.svg</file>
+        <file>icons/pop.svg</file>
+        <file>icons/cherry.svg</file>
+        <file>icons/revert.svg</file>
+        <file>icons/refresh.svg</file>
+        <file>icons/branch.svg</file>
+        <file>icons/feature.svg</file>
+        <file>icons/bugfix.svg</file>
+        <file>icons/release.svg</file>
+        <file>icons/hotfix.svg</file>
+        <file>icons/finish.svg</file>
+        <file>icons/logo.svg</file>
+        <file>icons/logo2.svg</file>
+        <file>loopgit_radius_icon.ico</file>
+    </qresource>
+</RCC>
