@@ -258,7 +258,7 @@ void RepoWidget::setupCentralWidget() {
     hHeader->setStretchLastSection(false); // Do not stretch the last section (Date)
     hHeader->setSectionResizeMode(CommitGraphModel::ColGraph, QHeaderView::Fixed);
     hHeader->setSectionResizeMode(CommitGraphModel::ColMessage, QHeaderView::Stretch); // Stretch Message instead
-    m_logTable->setColumnWidth(CommitGraphModel::ColGraph, 60);
+    m_logTable->setColumnWidth(CommitGraphModel::ColGraph, 90);
     m_logTable->setColumnWidth(CommitGraphModel::ColHash, 70);
     m_logTable->setColumnHidden(CommitGraphModel::ColBranches, true);
     m_logTable->setColumnWidth(CommitGraphModel::ColAuthor, 120);

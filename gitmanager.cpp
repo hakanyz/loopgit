@@ -330,6 +330,24 @@ QVector<CommitInfo> GitManager::getLog(int maxCount)
         }
     }
 
+    struct StashEntry {
+        size_t index;
+        git_oid oid;
+    };
+    QVector<StashEntry> stashes;
+    git_stash_foreach(m_repo, [](size_t index, const char * /*message*/, const git_oid *stash_id, void *payload) -> int {
+        auto *list = static_cast<QVector<StashEntry>*>(payload);
+        list->append({ index, *stash_id });
+        return 0;
+    }, &stashes);
+
+    for (const auto &s : stashes) {
+        char hashBuf[41];
+        git_oid_tostr(hashBuf, sizeof(hashBuf), &s.oid);
+        commitToRefs[QString::fromUtf8(hashBuf)].append(QStringLiteral("stash@{%1}").arg(s.index));
+        git_revwalk_push(walker, &s.oid);
+    }
+
     while (git_revwalk_next(&oid, walker) == 0 && count < maxCount) {
         git_commit *commit = nullptr;
         if (git_commit_lookup(&commit, m_repo, &oid) != 0)
@@ -343,6 +361,13 @@ QVector<CommitInfo> GitManager::getLog(int maxCount)
         ci.message = QString::fromUtf8(git_commit_message(commit));
         ci.summary = QString::fromUtf8(git_commit_summary(commit));
 
+        // Skip synthetic git stash index commits ("index on <branch>:")
+        // These are internal git implementation details that pollute the log view.
+        if (ci.summary.startsWith("index on ") && !commitToRefs.contains(ci.id)) {
+            git_commit_free(commit);
+            continue;
+        }
+
         const git_signature *author = git_commit_author(commit);
         if (author) {
             ci.authorName  = QString::fromUtf8(author->name);
@@ -352,8 +377,20 @@ QVector<CommitInfo> GitManager::getLog(int maxCount)
                                  QTimeZone(author->when.offset * 60));
         }
 
+        bool isStash = false;
+        for (const QString &r : commitToRefs.value(ci.id)) {
+            if (r.startsWith("stash@{")) {
+                isStash = true;
+                break;
+            }
+        }
+
         unsigned int parentCount = git_commit_parentcount(commit);
         for (unsigned int i = 0; i < parentCount; ++i) {
+            // For a stash commit, parent 0 is the commit on the branch where the stash was created (HEAD).
+            // Skip parent 1 (the internal index commit) so the stash branches cleanly off HEAD.
+            if (isStash && i > 0) continue;
+
             const git_oid *poid = git_commit_parent_id(commit, i);
             char pHashBuf[41];
             git_oid_tostr(pHashBuf, sizeof(pHashBuf), poid);

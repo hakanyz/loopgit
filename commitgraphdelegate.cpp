@@ -48,6 +48,8 @@ void CommitGraphDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
                     bgColor = QColor("#DA3633"); // Remote (Red)
                 } else if (ref.startsWith("tag: ")) {
                     bgColor = QColor("#E2C08D"); // Tag (Yellow)
+                } else if (ref.startsWith("stash@{")) {
+                    bgColor = QColor("#6E7681"); // Stash (Slate Gray)
                 } else {
                     bgColor = QColor("#0E639C"); // Local (Blue)
                 }
@@ -67,7 +69,7 @@ void CommitGraphDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
                     painter->setBrush(bgColor);
                     painter->drawRoundedRect(badgeRect, 4, 4);
                     
-                    painter->setPen(Qt::white);
+                    painter->setPen(ref.startsWith("tag: ") ? QColor("#1E1E1E") : Qt::white);
                     painter->drawText(badgeRect, Qt::AlignCenter, text);
                     
                     currentX += badgeWidth + 4;
@@ -129,19 +131,21 @@ void CommitGraphDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
         painter->setPen(QPen(edge.color, 2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
         
         QPainterPath path;
-        int endY = (edge.toLane == node.lane) ? centerY - dotRadius : centerY;
-        path.moveTo(laneX(edge.fromLane), topY);
+        qreal toX = laneX(edge.toLane);
         
         if (edge.fromLane == edge.toLane) {
             // Straight line
-            path.lineTo(laneX(edge.toLane), endY);
+            path.moveTo(toX, topY);
+            path.lineTo(toX, centerY);
         } else {
-            // Smooth Bézier curve
-            int startX = laneX(edge.fromLane);
-            int endX   = laneX(edge.toLane);
-            path.cubicTo(startX, topY + (endY - topY) / 2.0,
-                         endX,   topY + (endY - topY) / 2.0,
-                         endX,   endY);
+            // Second half of C1 continuous cubic spline (entering this row)
+            qreal fromX = laneX(edge.fromLane);
+            qreal midX  = (fromX + toX) * 0.5;
+            qreal dy    = centerY - topY;
+            path.moveTo(midX, topY);
+            path.cubicTo(0.25 * fromX + 0.75 * toX, topY + dy * 0.25,
+                         toX,                       centerY - dy * 0.5,
+                         toX,                       centerY);
         }
         painter->drawPath(path);
     }
@@ -158,19 +162,21 @@ void CommitGraphDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
         painter->setPen(QPen(edge.color, 2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
         
         QPainterPath path;
-        int startY = (edge.fromLane == node.lane) ? centerY + dotRadius : centerY;
-        path.moveTo(laneX(edge.fromLane), startY);
+        qreal fromX = laneX(edge.fromLane);
         
         if (edge.fromLane == edge.toLane) {
             // Straight line
-            path.lineTo(laneX(edge.toLane), bottomY);
+            path.moveTo(fromX, centerY);
+            path.lineTo(fromX, bottomY);
         } else {
-            // Smooth Bézier curve
-            int startX = laneX(edge.fromLane);
-            int endX   = laneX(edge.toLane);
-            path.cubicTo(startX, startY + (bottomY - startY) / 2.0,
-                         endX,   startY + (bottomY - startY) / 2.0,
-                         endX,   bottomY);
+            // First half of C1 continuous cubic spline (leaving this row)
+            qreal toX  = laneX(edge.toLane);
+            qreal midX = (fromX + toX) * 0.5;
+            qreal dy   = bottomY - centerY;
+            path.moveTo(fromX, centerY);
+            path.cubicTo(fromX,                     centerY + dy * 0.5,
+                         0.75 * fromX + 0.25 * toX, centerY + dy * 0.75,
+                         midX,                      bottomY);
         }
         painter->drawPath(path);
     }
@@ -198,6 +204,16 @@ void CommitGraphDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
         painter->setPen(QPen(node.color, 3));
         painter->setBrush(QColor("#1E1E1E")); // Dark background
         painter->drawEllipse(QPoint(centerX, centerY), dotRadius + 1, dotRadius + 1);
+    } else if (node.isStash) {
+        // Stash: diamond marker in muted gray (GitExtensions style)
+        painter->setPen(QPen(node.color, 2));
+        painter->setBrush(node.color);
+        QPolygon diamond;
+        diamond << QPoint(centerX, centerY - 4)
+                << QPoint(centerX + 4, centerY)
+                << QPoint(centerX, centerY + 4)
+                << QPoint(centerX - 4, centerY);
+        painter->drawPolygon(diamond);
     } else if (isMerge) {
         // Solid fill for merge commits
         painter->setPen(QPen(node.color, 2));

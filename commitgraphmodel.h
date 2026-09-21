@@ -18,6 +18,7 @@ struct GraphNode {
     int lane;
     QColor color;
     bool isMerge = false;
+    bool isStash = false;
     QVector<GraphEdge> edgesOut; // edges going down (to parents)
     QVector<GraphEdge> edgesIn;  // edges coming from above (from children)
 };
@@ -59,7 +60,7 @@ public:
 
 private:
     void computeGraph();
-    QColor colorForLane(int lane) const;
+    QColor colorForLane(int lane, bool isStash = false) const;
 
     QVector<GraphCommit> m_data;
 };
