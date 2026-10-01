@@ -1,6 +1,6 @@
 [Setup]
 AppName=LoopGit
-AppVersion=1.1.22
+AppVersion=1.1.23
 AppPublisher=Hakan
 AppPublisherURL=https://github.com/hakanyz/loopgit
 DefaultDirName={autopf}\LoopGit
