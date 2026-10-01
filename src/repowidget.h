@@ -58,6 +58,8 @@ private slots:
     void unstageSelected();
     void stageAll();
     void unstageAll();
+    void discardSelected();
+    void discardAll();
 
     // ── Commit ──────────────────────────────────────────
     void doCommit();

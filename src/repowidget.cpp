@@ -127,12 +127,19 @@ void RepoWidget::setupCentralWidget() {
     QPushButton *stashBtn = new QPushButton("Stash");
     QPushButton *stashPopBtn = new QPushButton("Pop Stash");
 
+    QPushButton *discardSelectedBtn = new QPushButton(QString::fromUtf8("\xe2\x9c\x96 Discard"));
+    QPushButton *discardAllBtn = new QPushButton(QString::fromUtf8("\xe2\x9c\x96\xe2\x9c\x96 Discard All"));
+    discardSelectedBtn->setStyleSheet("color: #E74C3C; font-weight: bold;");
+    discardAllBtn->setStyleSheet("color: #E74C3C; font-weight: bold;");
+
     connect(stageBtn,      &QPushButton::clicked, this, &RepoWidget::stageSelected);
     connect(unstageBtn,    &QPushButton::clicked, this, &RepoWidget::unstageSelected);
     connect(stageAllBtn,   &QPushButton::clicked, this, &RepoWidget::stageAll);
     connect(unstageAllBtn, &QPushButton::clicked, this, &RepoWidget::unstageAll);
     connect(stashBtn,      &QPushButton::clicked, this, &RepoWidget::doStashSave);
     connect(stashPopBtn,   &QPushButton::clicked, this, &RepoWidget::doStashPop);
+    connect(discardSelectedBtn, &QPushButton::clicked, this, &RepoWidget::discardSelected);
+    connect(discardAllBtn,      &QPushButton::clicked, this, &RepoWidget::discardAll);
 
     QHBoxLayout *stageBtnLayout = new QHBoxLayout;
     stageBtnLayout->setContentsMargins(0, 0, 0, 0);
@@ -143,6 +150,9 @@ void RepoWidget::setupCentralWidget() {
     stageBtnLayout->addStretch();
     stageBtnLayout->addWidget(stashBtn);
     stageBtnLayout->addWidget(stashPopBtn);
+    stageBtnLayout->addSpacing(10);
+    stageBtnLayout->addWidget(discardSelectedBtn);
+    stageBtnLayout->addWidget(discardAllBtn);
 
     // ── Left side: file changes tree + stage buttons ──
     QWidget *fileChangesWidget = new QWidget;
@@ -851,6 +861,39 @@ void RepoWidget::stageAll()
 void RepoWidget::unstageAll()
 {
     m_git->unstageAll();
+    refreshAll();
+}
+
+void RepoWidget::discardSelected()
+{
+    auto items = m_localChangesTree->selectedItems();
+    if (items.isEmpty()) return;
+
+    if (QMessageBox::question(this, "Discard Selected", "Are you sure you want to discard changes in selected files?\nThis action cannot be undone.") != QMessageBox::Yes) {
+        return;
+    }
+
+    for (auto *item : items) {
+        if (item->parent() == m_unstagedRoot || item->parent() == m_stagedRoot) {
+            QString path = item->data(0, Qt::UserRole).toString();
+            m_git->discardFileChanges(path);
+        }
+    }
+    refreshAll();
+}
+
+void RepoWidget::discardAll()
+{
+    if (QMessageBox::question(this, "Discard All", "Are you sure you want to discard ALL uncommitted changes?\nThis action cannot be undone.") != QMessageBox::Yes) {
+        return;
+    }
+    
+    for (int i = 0; i < m_unstagedRoot->childCount(); ++i) {
+        m_git->discardFileChanges(m_unstagedRoot->child(i)->data(0, Qt::UserRole).toString());
+    }
+    for (int i = 0; i < m_stagedRoot->childCount(); ++i) {
+        m_git->discardFileChanges(m_stagedRoot->child(i)->data(0, Qt::UserRole).toString());
+    }
     refreshAll();
 }
 
