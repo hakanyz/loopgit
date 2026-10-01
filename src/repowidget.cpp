@@ -302,6 +302,7 @@ void RepoWidget::setupCentralWidget() {
     historyTopSplitter->setStretchFactor(2, 3);
 
     m_historyDiffView = new DiffViewWidget;
+    m_historyDiffView->hide();
 
     QSplitter *historyMainSplitter = new QSplitter(Qt::Vertical);
     historyMainSplitter->addWidget(historyTopSplitter);
@@ -680,6 +681,7 @@ void RepoWidget::onCommitSelected(const QItemSelection &selected, const QItemSel
     
     m_historyFilesTree->clear();
     m_historyDiffView->clearDiff();
+    m_historyDiffView->hide();
     
     if (selected.indexes().isEmpty()) {
         m_selectedCommitId.clear();
@@ -780,6 +782,7 @@ void RepoWidget::onCommitFileClicked(QTreeWidgetItem *item, int /*column*/)
     } else {
         m_historyDiffView->setDiffText(diff);
     }
+    m_historyDiffView->show();
 }
 
 void RepoWidget::onFileItemDoubleClicked(QTreeWidgetItem *item, int /*column*/)

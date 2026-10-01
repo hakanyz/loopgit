@@ -6,6 +6,7 @@
 #include <QSyntaxHighlighter>
 #include <QTextCharFormat>
 #include <QRegularExpression>
+#include <QKeyEvent>
 
 // ─── DiffHighlighter ───────────────────────────────────────────────
 
@@ -78,6 +79,9 @@ signals:
 
 private slots:
     void onLeftEditorStageHunk(int blockNumber);
+
+protected:
+    void keyPressEvent(QKeyEvent *event) override;
 
 private:
     DiffEditor *m_leftEditor;

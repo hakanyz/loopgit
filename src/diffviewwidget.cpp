@@ -293,6 +293,16 @@ DiffViewWidget::DiffViewWidget(QWidget *parent)
     connect(m_leftEditor, &DiffEditor::stageHunkRequested, this, &DiffViewWidget::onLeftEditorStageHunk);
 }
 
+void DiffViewWidget::keyPressEvent(QKeyEvent *event)
+{
+    if (event->key() == Qt::Key_Escape) {
+        this->hide();
+    } else {
+        QWidget::keyPressEvent(event);
+    }
+}
+
+
 void DiffViewWidget::setDiffText(const QString &diff)
 {
     m_currentDiff = diff;
